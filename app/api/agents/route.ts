@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const result = await discoverAcrossRequiredCategories(8);
     const agents = category && REQUIRED_CATEGORIES.includes(category)
-      ? result.agents.filter((agent) => agent.category === category)
+      ? result.agents.filter((agent) => agent.categories.includes(category))
       : result.agents;
 
     return NextResponse.json({
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         api: "https://8004scan.io/api/v1/public",
         registry: "ERC-8004",
         checkedAt: result.checkedAt,
-        classification: "keyword evidence from indexed agent name/description; semantic rank alone is never treated as category proof",
+        classification: "multi-category keyword evidence from indexed agent name/description/tags; semantic rank alone is never treated as category proof",
         operationalClaim: "registry-listed only; endpoint probing is a separate Phase 1 gate",
       },
       categoryCounts: result.categoryCounts,
