@@ -20,6 +20,13 @@ export interface NegotiationTransportResult {
   transport: "HTTP" | "A2A";
 }
 
+export interface FundedNotificationResult {
+  notified: boolean;
+  endpoint: string | null;
+  detail: string;
+  raw?: unknown;
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -43,18 +50,18 @@ async function readJsonLimited(response: Response): Promise<unknown> {
   const declared = Number(response.headers.get("content-length") || 0);
   if (Number.isFinite(declared) && declared > MAX_JSON_BYTES) {
     await response.body?.cancel().catch(() => undefined);
-    throw new Error("ERC-8183 negotiation response exceeded AgentDesk evidence size limit");
+    throw new Error("ERC-8183 service response exceeded AgentDesk evidence size limit");
   }
   const text = await response.text();
   if (Buffer.byteLength(text, "utf8") > MAX_JSON_BYTES) {
-    throw new Error("ERC-8183 negotiation response exceeded AgentDesk evidence size limit");
+    throw new Error("ERC-8183 service response exceeded AgentDesk evidence size limit");
   }
   return JSON.parse(text) as unknown;
 }
 
 async function safePostJson(url: URL, body: unknown): Promise<{ response: Response; raw?: unknown }> {
   const validation = await validatePublicHttpsUrl(url.toString());
-  if (!validation.ok) throw new Error(`Negotiation endpoint is unsafe to call: ${validation.reason}`);
+  if (!validation.ok) throw new Error(`ERC-8183 endpoint is unsafe to call: ${validation.reason}`);
   const response = await fetch(validation.url, {
     method: "POST",
     headers: {
@@ -126,7 +133,19 @@ function cardCandidates(endpoint: URL): URL[] {
   return [...new Map(candidates.map((url) => [url.toString(), url])).values()];
 }
 
-async function resolveA2ACard(service: AgentService): Promise<{ card: AgentCard; cardUrl: string }> {
+function cardAdvertisesSkill(card: AgentCard, requiredSkill: "negotiate" | "notify_funded"): boolean {
+  if (!Array.isArray(card.skills)) return false;
+  return card.skills.some((skill) => {
+    const id = `${skill?.id ?? ""} ${skill?.name ?? ""}`.toLowerCase();
+    if (requiredSkill === "notify_funded") return id.includes("notify_funded") || (id.includes("notify") && id.includes("fund"));
+    return id.includes("negotiate-erc8183-job") || (id.includes("erc8183") && id.includes("negot"));
+  });
+}
+
+async function resolveA2ACard(
+  service: AgentService,
+  requiredSkill: "negotiate" | "notify_funded",
+): Promise<{ card: AgentCard; cardUrl: string }> {
   const serviceValidation = await validatePublicHttpsUrl(service.endpoint);
   if (!serviceValidation.ok) throw new Error(`Advertised A2A service is unsafe to call: ${serviceValidation.reason}`);
 
@@ -150,12 +169,8 @@ async function resolveA2ACard(service: AgentService): Promise<{ card: AgentCard;
       const raw = record(await readJsonLimited(response));
       if (!raw) continue;
       const card = raw as AgentCard;
-      const hasSkill = Array.isArray(card.skills) && card.skills.some((skill) => {
-        const id = `${skill?.id ?? ""} ${skill?.name ?? ""}`.toLowerCase();
-        return id.includes("negotiate-erc8183-job") || (id.includes("erc8183") && id.includes("negot"));
-      });
-      if (!hasSkill) {
-        lastReason = "agent card does not advertise the negotiate-erc8183-job skill";
+      if (!cardAdvertisesSkill(card, requiredSkill)) {
+        lastReason = `agent card does not advertise ${requiredSkill}`;
         continue;
       }
       return { card, cardUrl: validation.url.toString() };
@@ -163,7 +178,7 @@ async function resolveA2ACard(service: AgentService): Promise<{ card: AgentCard;
       lastReason = error instanceof Error ? error.message : "agent-card resolution failed";
     }
   }
-  throw new Error(`A2A service is reachable but no ERC-8183 negotiation skill was proven: ${lastReason}`);
+  throw new Error(`A2A service did not prove required ${requiredSkill} capability: ${lastReason}`);
 }
 
 function a2aTarget(card: AgentCard): string | null {
@@ -190,15 +205,7 @@ function extractA2AData(raw: unknown): unknown {
   return null;
 }
 
-async function negotiateA2A(service: AgentService, input: NegotiationInput): Promise<NegotiationTransportResult> {
-  const serviceValidation = await validatePublicHttpsUrl(service.endpoint);
-  if (!serviceValidation.ok) throw new Error(`Advertised A2A service is unsafe to call: ${serviceValidation.reason}`);
-  const { card } = await resolveA2ACard(service);
-  const target = a2aTarget(card);
-  if (!target) throw new Error("A2A card advertises ERC-8183 negotiation but no JSON-RPC target");
-
-  const targetValidation = await validatePublicHttpsUrl(target);
-  if (!targetValidation.ok) throw new Error(`A2A negotiation target is unsafe to call: ${targetValidation.reason}`);
+async function sendA2ASkill(target: URL, data: Record<string, unknown>): Promise<unknown> {
   const rpc = {
     jsonrpc: "2.0",
     id: randomUUID(),
@@ -208,17 +215,30 @@ async function negotiateA2A(service: AgentService, input: NegotiationInput): Pro
         kind: "message",
         role: "user",
         messageId: randomUUID(),
-        parts: [{ kind: "data", data: { skill: "negotiate-erc8183-job", ...input } }],
+        parts: [{ kind: "data", data }],
       },
     },
   };
-  const result = await safePostJson(targetValidation.url, rpc);
+  const result = await safePostJson(target, rpc);
   if (!result.response.ok || result.raw === undefined) {
     const status = result.response.status;
     await result.response.body?.cancel().catch(() => undefined);
-    throw new Error(`A2A ERC-8183 negotiation returned HTTP ${status}`);
+    throw new Error(`A2A ERC-8183 request returned HTTP ${status}`);
   }
-  const data = extractA2AData(result.raw);
+  return result.raw;
+}
+
+async function negotiateA2A(service: AgentService, input: NegotiationInput): Promise<NegotiationTransportResult> {
+  const serviceValidation = await validatePublicHttpsUrl(service.endpoint);
+  if (!serviceValidation.ok) throw new Error(`Advertised A2A service is unsafe to call: ${serviceValidation.reason}`);
+  const { card } = await resolveA2ACard(service, "negotiate");
+  const target = a2aTarget(card);
+  if (!target) throw new Error("A2A card advertises ERC-8183 negotiation but no JSON-RPC target");
+
+  const targetValidation = await validatePublicHttpsUrl(target);
+  if (!targetValidation.ok) throw new Error(`A2A negotiation target is unsafe to call: ${targetValidation.reason}`);
+  const raw = await sendA2ASkill(targetValidation.url, { skill: "negotiate-erc8183-job", ...input });
+  const data = extractA2AData(raw);
   if (!data) throw new Error("A2A negotiation response did not contain a structured data result");
 
   return {
@@ -240,4 +260,44 @@ export async function negotiateAdvertisedService(
   if (a2a) return negotiateA2A(a2a, input);
 
   throw new Error("This ERC-8004 identity advertises neither a direct ERC-8183 commerce service nor an A2A negotiation skill endpoint");
+}
+
+export async function notifyFundedAdvertisedA2A(
+  services: AgentService[],
+  input: { jobId: string; chainId: 56 | 97 },
+): Promise<FundedNotificationResult> {
+  const service = services.find(isA2AService);
+  if (!service) {
+    return {
+      notified: false,
+      endpoint: null,
+      detail: "No A2A service is advertised. Direct ERC-8183 providers may detect the funded job through their own chain watcher.",
+    };
+  }
+
+  const numericJobId = Number(input.jobId);
+  if (!Number.isSafeInteger(numericJobId) || numericJobId < 0) {
+    throw new Error("A2A notify_funded requires a safely representable ERC-8183 job ID");
+  }
+
+  const { card } = await resolveA2ACard(service, "notify_funded");
+  const target = a2aTarget(card);
+  if (!target) throw new Error("A2A card advertises notify_funded but no JSON-RPC target");
+  const validation = await validatePublicHttpsUrl(target);
+  if (!validation.ok) throw new Error(`A2A notify_funded target is unsafe to call: ${validation.reason}`);
+
+  const raw = await sendA2ASkill(validation.url, {
+    skill: "notify_funded",
+    job_id: numericJobId,
+    chain_id: input.chainId,
+  });
+  const root = record(raw);
+  if (root?.error) throw new Error("A2A provider rejected notify_funded");
+
+  return {
+    notified: true,
+    endpoint: validation.url.toString(),
+    detail: "Provider A2A endpoint accepted the funded-job notification.",
+    raw,
+  };
 }
