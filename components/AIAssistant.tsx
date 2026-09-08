@@ -3,7 +3,7 @@
 import { FormEvent, useRef, useState } from "react";
 import { Check, ChevronDown, LoaderCircle, Send, Sparkles } from "lucide-react";
 
-const initialAnswer = "Ask HealthGuard a question to start the conversation.";
+const initialAnswer = "Ask the HealthGuard prototype a question to test the current agent integration.";
 const unavailableMessage = "Unable to reach HealthGuard AI. Please try again.";
 
 export default function AIAssistant({ compact = false, agentId = "healthguard-ai" }: { compact?: boolean; agentId?: string }) {
@@ -46,6 +46,12 @@ export default function AIAssistant({ compact = false, agentId = "healthguard-ai
   }
 
   const responseText = status === "loading" ? "HealthGuard AI is analyzing..." : answer;
+  const facts = [
+    "Camber-backed HealthGuard prototype",
+    "Agent call stays server-side",
+    "Camber token is never exposed to the browser",
+    "ERC-8004 registry proof is evaluated separately",
+  ];
 
-  return <section className={`side-card assistant-card ${compact ? "assistant-compact" : ""}`}><h2><span><Sparkles size={22} /></span>AI Assistant</h2><p className="side-subtitle">Ask HealthGuard about trust and DeFi risk</p><button type="button" className="selected-agent"><span>HG</span>HealthGuard AI<ChevronDown size={15} /></button><div className="suggestion">Should I trust this agent?</div><div className="assistant-response" aria-live="polite"><p>{responseText}</p>{!compact && <ul>{["Verified identity (ERC-8004)", "Health factor risk coverage", "No critical vulnerabilities", "Active BNB Chain usage"].map(item => <li key={item}><Check size={14} />{item}</li>)}</ul>}{status === "error" && <p className="ai-error">{unavailableMessage}</p>}</div><form className="ask-input" onSubmit={ask} noValidate><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question..." aria-label="Ask HealthGuard AI" onKeyDown={(event) => { if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault(); }} /><button type="submit" aria-label="Send question" disabled={status === "loading"}>{status === "loading" ? <LoaderCircle className="spin" size={18} /> : <Send size={19} />}</button></form></section>;
+  return <section className={`side-card assistant-card ${compact ? "assistant-compact" : ""}`}><h2><span><Sparkles size={22} /></span>AI Assistant</h2><p className="side-subtitle">Test the current HealthGuard prototype</p><button type="button" className="selected-agent"><span>HG</span>HealthGuard AI<ChevronDown size={15} /></button><div className="suggestion">Ask a DeFi risk question</div><div className="assistant-response" aria-live="polite"><p>{responseText}</p>{!compact && <ul>{facts.map(item => <li key={item}><Check size={14} />{item}</li>)}</ul>}{status === "error" && <p className="ai-error">{unavailableMessage}</p>}</div><form className="ask-input" onSubmit={ask} noValidate><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question..." aria-label="Ask HealthGuard AI" onKeyDown={(event) => { if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault(); }} /><button type="submit" aria-label="Send question" disabled={status === "loading"}>{status === "loading" ? <LoaderCircle className="spin" size={18} /> : <Send size={19} />}</button></form></section>;
 }
