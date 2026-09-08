@@ -34,6 +34,8 @@ interface JobCheckResponse {
     available: true;
     source: string;
     contentHash: string;
+    onChainHash?: string;
+    verifiedAgainstChain?: boolean;
     value: unknown;
   };
   deliverableError?: string | null;
@@ -74,7 +76,7 @@ export default function JobEvidencePanel({
       const response = await fetch("/api/hiring/job", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenId, jobId: job.jobId, chainId: job.chainId }),
+        body: JSON.stringify({ tokenId, jobId: job.jobId, chainId: job.chainId, fundBlock: job.fundBlock }),
       });
       const body = await response.json() as JobCheckResponse;
       if (!response.ok || !body.ok || !body.job) throw new Error(body.error || "Could not verify the ERC-8183 job");
@@ -174,10 +176,10 @@ export default function JobEvidencePanel({
     {check?.proofBoundary ? <p className="hire-boundary">{check.proofBoundary}</p> : null}
 
     {check?.deliverable ? <div className="provider-deliverable">
-      <div className="provider-deliverable-title"><CheckCircle2 size={15} /><strong>Provider result retrieved</strong></div>
+      <div className="provider-deliverable-title"><CheckCircle2 size={15} /><strong>{check.deliverable.verifiedAgainstChain ? "Provider result verified against on-chain deliverable hash" : "Provider result retrieved"}</strong></div>
       <pre>{printable(check.deliverable.value)}</pre>
       <div className="deliverable-proof">
-        <span title={check.deliverable.contentHash}>content hash {check.deliverable.contentHash.slice(0, 12)}…</span>
+        <span title={check.deliverable.onChainHash || check.deliverable.contentHash}>{check.deliverable.verifiedAgainstChain ? "on-chain hash" : "content hash"} {(check.deliverable.onChainHash || check.deliverable.contentHash).slice(0, 12)}…</span>
         <a href={check.deliverable.source} target="_blank" rel="noreferrer">provider source <ExternalLink size={11} /></a>
       </div>
     </div> : null}
