@@ -7,7 +7,6 @@ import SearchBar from "@/components/SearchBar";
 import RegistryAgentCard from "@/components/RegistryAgentCard";
 import WalletPanel from "@/components/WalletPanel";
 import AIAssistant from "@/components/AIAssistant";
-import ActiveAgents from "@/components/ActiveAgents";
 import StatsSection from "@/components/StatsSection";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 
@@ -87,8 +86,9 @@ export default function HomePage() {
           {filteredAgents.map((agent) => <RegistryAgentCard key={`${agent.chainId}:${agent.tokenId}`} agent={agent} />)}
         </main>
       </div>
-      <aside className="market-sidebar" aria-label="Wallet and AI dashboard">
-        <WalletPanel /><AIAssistant /><ActiveAgents />
+      <aside className="market-sidebar" aria-label="Wallet and assistant tools">
+        <WalletPanel />
+        <AIAssistant />
       </aside>
     </div>
     <StatsSection />
