@@ -1,0 +1,22 @@
+import fs from "node:fs";
+import solc from "solc";
+import { createPublicClient, createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+
+const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+if (!privateKey || !/^0x[\da-fA-F]{64}$/.test(privateKey)) throw new Error("Set DEPLOYER_PRIVATE_KEY to a funded BNB Testnet deployment key.");
+const chain = { id: 97, name: "BNB Smart Chain Testnet", nativeCurrency: { name: "tBNB", symbol: "tBNB", decimals: 18 }, rpcUrls: { default: { http: [process.env.BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545"] } } };
+const source = fs.readFileSync("contracts/AgentTrustMarketplace.sol", "utf8");
+const output = JSON.parse(solc.compile(JSON.stringify({ language: "Solidity", sources: { "AgentTrustMarketplace.sol": { content: source } }, settings: { outputSelection: { "*": { "*": ["abi", "evm.bytecode.object"] } } } })));
+const errors = output.errors?.filter((item) => item.severity === "error") || [];
+if (errors.length) throw new Error(errors.map((item) => item.formattedMessage).join("\n"));
+const contract = output.contracts["AgentTrustMarketplace.sol"].AgentTrustMarketplace;
+const account = privateKeyToAccount(privateKey);
+const walletClient = createWalletClient({ account, chain, transport: http() });
+const publicClient = createPublicClient({ chain, transport: http() });
+const hash = await walletClient.deployContract({ abi: contract.abi, bytecode: `0x${contract.evm.bytecode.object}` });
+const receipt = await publicClient.waitForTransactionReceipt({ hash });
+if (!receipt.contractAddress) throw new Error("Deployment completed without a contract address.");
+console.log(`Deployed AgentTrustMarketplace: ${receipt.contractAddress}`);
+console.log(`Set NEXT_PUBLIC_AGENTTRUST_MARKETPLACE_ADDRESS=${receipt.contractAddress}`);
+console.log(`BscScan: https://testnet.bscscan.com/tx/${hash}`);

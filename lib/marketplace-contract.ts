@@ -1,0 +1,2 @@
+export const marketplaceAbi = [{ type: "function", name: "hireAgent", stateMutability: "payable", inputs: [{ name: "agentId", type: "uint256" }], outputs: [] }, { type: "event", name: "AgentHired", anonymous: false, inputs: [{ indexed: true, name: "user", type: "address" }, { indexed: true, name: "agentId", type: "uint256" }, { indexed: false, name: "timestamp", type: "uint256" }] }] as const;
+export const marketplaceAddress = process.env.NEXT_PUBLIC_AGENTTRUST_MARKETPLACE_ADDRESS as `0x${string}` | undefined;

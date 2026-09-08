@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import SearchBar from "@/components/SearchBar";
@@ -8,53 +9,33 @@ import WalletPanel from "@/components/WalletPanel";
 import AIAssistant from "@/components/AIAssistant";
 import ActiveAgents from "@/components/ActiveAgents";
 import StatsSection from "@/components/StatsSection";
-import { agents, categories } from "@/data/agents";
-import { useState } from "react";
+import { agents } from "@/data/agents";
 
 export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState("All Categories");
-  const filteredAgents = activeCategory === "All Categories"
-    ? agents
-    : agents.filter(a => {
-        const catMap: Record<string, string[]> = {
-          "Monitoring Agents": ["Security & Monitoring"],
-          "Grid Trading Agents": ["Grid Trading"],
-          "Health Factor Agents": ["Portfolio Analysis"],
-          "Yield Agents": ["Yield Optimization"],
-        };
-        return (catMap[activeCategory] || []).includes(a.category);
-      });
+  const [query, setQuery] = useState("");
+  const filteredAgents = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return agents.filter((agent) =>
+      (activeCategory === "All Categories" || activeCategory === agent.category) &&
+      (!needle || `${agent.name} ${agent.category} ${agent.description}`.toLowerCase().includes(needle)),
+    );
+  }, [activeCategory, query]);
 
-  return (
-    <div className="min-h-screen bg-background text-white">
-      <Navbar />
-      <Hero />
-
-      <div className="mx-auto max-w-[1440px] px-6">
-        <SearchBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
-
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
-          {/* Main agent grid */}
-          <main>
-            <div className="grid sm:grid-cols-2 gap-5">
-              {filteredAgents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
-              ))}
-            </div>
-          </main>
-
-          {/* Right sidebar */}
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <WalletPanel />
-            <AIAssistant />
-            <ActiveAgents />
-          </aside>
-        </div>
+  return <div className="min-h-screen overflow-x-hidden bg-background text-white">
+    <Navbar />
+    <div className="market-shell">
+      <div className="market-main">
+        <Hero />
+        <SearchBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} query={query} setQuery={setQuery} />
+        <main className="agent-grid" id="agents" aria-label="Verified AI agents">
+          {filteredAgents.map((agent) => <AgentCard key={agent.id} agent={agent} />)}
+        </main>
       </div>
-
-      <div className="mx-auto max-w-[1440px] px-6">
-        <StatsSection />
-      </div>
+      <aside className="market-sidebar" aria-label="Wallet and AI dashboard">
+        <WalletPanel /><AIAssistant /><ActiveAgents />
+      </aside>
     </div>
-  );
+    <StatsSection />
+  </div>;
 }
