@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ExternalLink, Loader2, LockKeyhole, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
 import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
-import { formatUnits, isAddress, type Address, type Hex } from "viem";
+import { encodeFunctionData, formatUnits, isAddress, type Address, type Hex } from "viem";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
 import {
@@ -109,6 +109,19 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     }
   }
 
+  async function sendTransaction(to: Address, data: Hex): Promise<Hex> {
+    if (!walletClient?.account) throw new Error("Connected wallet account is unavailable");
+    const hash = await walletClient.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: walletClient.account.address,
+        to,
+        data,
+      }],
+    });
+    return hash as Hex;
+  }
+
   async function createAndFundJob() {
     if (!quote) return;
     if (!isConnected || !address) {
@@ -161,35 +174,31 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       const description = makeJobDescription(result, quote);
       const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 8 * 24 * 60 * 60);
-
-      const createTx = await walletClient.writeContract({
-        account: walletClient.account,
-        address: deployment.commerce,
+      const createData = encodeFunctionData({
         abi: erc8183CommerceAbi,
         functionName: "createJob",
         args: [quote.provider as Address, deployment.router, expiredAt, description, deployment.router],
       });
+      const createTx = await sendTransaction(deployment.commerce, createData);
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createTx });
       if (createReceipt.status !== "success") throw new Error("ERC-8183 createJob transaction reverted");
       const jobId = jobIdFromReceipt(createReceipt, deployment.commerce);
 
-      const registerTx = await walletClient.writeContract({
-        account: walletClient.account,
-        address: deployment.router,
+      const registerData = encodeFunctionData({
         abi: erc8183RouterAbi,
         functionName: "registerJob",
         args: [jobId, deployment.policy],
       });
+      const registerTx = await sendTransaction(deployment.router, registerData);
       const registerReceipt = await publicClient.waitForTransactionReceipt({ hash: registerTx });
       if (registerReceipt.status !== "success") throw new Error("ERC-8183 registerJob transaction reverted");
 
-      const budgetTx = await walletClient.writeContract({
-        account: walletClient.account,
-        address: deployment.commerce,
+      const budgetData = encodeFunctionData({
         abi: erc8183CommerceAbi,
         functionName: "setBudget",
         args: [jobId, budget, EMPTY_BYTES],
       });
+      const budgetTx = await sendTransaction(deployment.commerce, budgetData);
       const budgetReceipt = await publicClient.waitForTransactionReceipt({ hash: budgetTx });
       if (budgetReceipt.status !== "success") throw new Error("ERC-8183 setBudget transaction reverted");
 
@@ -202,24 +211,22 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       let approvalTx: Hex | undefined;
       if (allowance < budget) {
-        approvalTx = await walletClient.writeContract({
-          account: walletClient.account,
-          address: deployment.paymentToken,
+        const approvalData = encodeFunctionData({
           abi: erc20PaymentAbi,
           functionName: "approve",
           args: [deployment.commerce, budget],
         });
+        approvalTx = await sendTransaction(deployment.paymentToken, approvalData);
         const approvalReceipt = await publicClient.waitForTransactionReceipt({ hash: approvalTx });
         if (approvalReceipt.status !== "success") throw new Error("$U approval transaction reverted");
       }
 
-      const fundTx = await walletClient.writeContract({
-        account: walletClient.account,
-        address: deployment.commerce,
+      const fundData = encodeFunctionData({
         abi: erc8183CommerceAbi,
         functionName: "fund",
         args: [jobId, budget, EMPTY_BYTES],
       });
+      const fundTx = await sendTransaction(deployment.commerce, fundData);
       const fundReceipt = await publicClient.waitForTransactionReceipt({ hash: fundTx });
       if (fundReceipt.status !== "success") throw new Error("ERC-8183 fund transaction reverted");
 
