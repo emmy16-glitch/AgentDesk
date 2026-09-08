@@ -3,8 +3,8 @@ import "./globals.css";
 import AppProviders from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
-  title: "AgentTrust — AI Agents on BNB Chain",
-  description: "Discover, trust, and hire verified AI agents on BNB Chain.",
+  title: "AgentDesk — Audition AI Agents on BNB Chain",
+  description: "Discover source-backed ERC-8004 agents on BNB Chain, inspect their evidence, and audition task fit before hiring.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
