@@ -3,6 +3,8 @@
 > Status: **LOCKED**
 >
 > This document is the source of truth for the BNB Chain hackathon build. Any new code, UI, copy, demo flow, or integration must support this direction. Do not replace it with a generic AI-agent marketplace, a static directory, or fabricated trust metrics.
+>
+> Implementation note (2026-09-08): the original fabricated `data/agents.ts` catalogue and its judge-facing card/detail/hire surfaces have been removed from the active source tree. Real discovery now begins from ERC-8004 / BSC sources. The legacy `AgentTrustMarketplace` contract remains prototype infrastructure only.
 
 ## Product thesis
 
@@ -197,7 +199,7 @@ Audition should surface, where supported:
 
 ## Discovery architecture
 
-The long-term source of truth is not `data/agents.ts`.
+The source of truth is **not** a static local agent catalogue.
 
 Target architecture:
 
@@ -290,19 +292,13 @@ Required direction:
 - link identity and reputation data where available;
 - remove static claims that cannot be backed by the source.
 
-## Current static catalogue status
+## Static catalogue status
 
-`data/agents.ts` is temporary seed/demo data.
+The original `data/agents.ts` seed catalogue has been **removed from the active source tree**.
 
-Current hard-coded values such as:
+The old hard-coded trust scores, user counts, uptime, performance duration and generic verification flags must not be recreated in judge-facing code unless a real source supports the exact claim.
 
-- trust scores;
-- user counts;
-- uptime;
-- performance duration;
-- generic `verified: true`;
-
-must not survive as production/judge-facing claims unless replaced with real sourced data.
+Historical prototype concepts belong in git history, not as importable marketplace inventory.
 
 ## UX lock
 
