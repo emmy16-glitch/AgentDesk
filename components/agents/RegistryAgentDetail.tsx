@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Check, ExternalLink, ShieldCheck, UserRound } from "lucide-react";
+import ServiceProbePanel from "@/components/agents/ServiceProbePanel";
 import type { OnChainAgentIdentity } from "@/lib/erc8004-registry";
 
 export default function RegistryAgentDetail({ identity }: { identity: OnChainAgentIdentity }) {
@@ -45,6 +46,8 @@ export default function RegistryAgentDetail({ identity }: { identity: OnChainAge
           </div> : <p className="detail-description">No valid service endpoints were resolved from the ERC-8004 registration document.</p>}
         </section>
 
+        <ServiceProbePanel tokenId={identity.tokenId} serviceCount={identity.services.length} />
+
         <section className="detail-section">
           <h2>Declared trust support</h2>
           {supportedTrust.length ? <ul className="detail-capabilities">{supportedTrust.map((item) => <li key={item}><Check size={16} />{item}</li>)}</ul> : <p className="detail-description">No supportedTrust values were published in the resolved registration metadata.</p>}
@@ -61,7 +64,7 @@ export default function RegistryAgentDetail({ identity }: { identity: OnChainAge
         <section className="detail-purchase">
           <span>Current marketplace state</span>
           <strong>Identity verified</strong>
-          <small>Endpoint reachability is not implied by registration.</small>
+          <small>Endpoint reachability is checked separately; task quality comes in the audition phase.</small>
           <button type="button" className="detail-hire" disabled title="Live task auditions are Phase 2">Audition in Phase 2</button>
         </section>
         <section className="developer-card">
