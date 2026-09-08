@@ -1,67 +1,21 @@
-import { Sparkles, ChevronDown, Send, CheckCircle2 } from "lucide-react";
+"use client";
 
-export default function AIAssistant() {
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-card/50 backdrop-blur-md overflow-hidden mb-6">
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="h-8 w-8 rounded-lg bg-gold/10 border border-gold/10 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-gold" />
-          </div>
-          <h2 className="text-sm font-bold text-white">AI Assistant</h2>
-        </div>
-        <p className="text-xs text-text-muted mb-4">Ask anything about an agent</p>
+import { FormEvent, useRef, useState } from "react";
+import { Check, ChevronDown, LoaderCircle, Send, Sparkles } from "lucide-react";
 
-        {/* Agent selector */}
-        <button className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-surface/60 px-3 py-2.5 mb-4 hover:border-white/[0.15] transition-colors text-left">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-gradient-to-br from-[#a855f7] to-[#8b5cf6] flex items-center justify-center text-[10px] font-bold text-white">G</div>
-            <div>
-              <div className="text-xs font-semibold text-white">Guardian AI</div>
-              <div className="text-[10px] text-text-muted">Security & Monitoring</div>
-            </div>
-          </div>
-          <ChevronDown className="h-3.5 w-3.5 text-text-muted" />
-        </button>
+const starterAnswer = "HealthGuard AI monitors your lending positions continuously. Review its permissions, use a dedicated wallet, and set alerts before your health factor approaches the liquidation threshold.";
 
-        {/* Question area */}
-        <div className="mb-4">
-          <h4 className="text-xs font-bold text-white mb-3">Should I trust this agent?</h4>
-          <div className="rounded-xl bg-surface/40 border border-white/[0.06] p-3 space-y-2.5">
-            {[
-              "Verified identity (ERC-8004)",
-              "Clean transaction history",
-              "No critical vulnerabilities",
-              "Active community usage",
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-2 text-[11px] text-text-secondary">
-                <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" strokeWidth={2.5} />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recommendation */}
-        <div className="rounded-xl bg-success/[0.06] border border-success/10 p-3 mb-4">
-          <div className="text-xs font-bold text-success mb-1">Recommendation: Safe to Hire</div>
-          <p className="text-[11px] text-text-secondary leading-relaxed">
-            This agent has a strong track record and transparent permissions. Verified by on-chain data and active users.
-          </p>
-        </div>
-
-        {/* Input */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Ask a question..."
-            className="w-full rounded-xl border border-white/[0.08] bg-card/80 px-4 py-3 pr-10 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-gold/30 focus:ring-1 focus:ring-gold/10 transition-all"
-          />
-          <button className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-gold flex items-center justify-center hover:bg-gold-dark transition-colors shadow-[0_2px_10px_rgba(242,189,62,0.3)]">
-            <Send className="h-3.5 w-3.5 text-black" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+export default function AIAssistant({ compact = false }: { compact?: boolean }) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState(starterAnswer);
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const abortRef = useRef<AbortController | null>(null);
+  async function ask(event: FormEvent) {
+    event.preventDefault(); const text = question.trim(); if (!text || status === "loading") return;
+    abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
+    setStatus("loading");
+    try { const response = await fetch("/api/ai/healthguard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text }), signal: controller.signal }); const payload = await response.json(); if (!response.ok) throw new Error(payload.error || "HealthGuard could not answer right now."); setAnswer(payload.answer); setQuestion(""); setStatus("idle"); }
+    catch (reason) { if ((reason as Error).name !== "AbortError") { setStatus("error"); setAnswer(reason instanceof Error ? reason.message : "HealthGuard could not answer right now."); } }
+  }
+  return <section className={`side-card assistant-card ${compact ? "assistant-compact" : ""}`}><h2><span><Sparkles size={22} /></span>AI Assistant</h2><p className="side-subtitle">Ask HealthGuard about trust and DeFi risk</p><button type="button" className="selected-agent"><span>HG</span>HealthGuard AI<ChevronDown size={15} /></button><div className="suggestion">Should I trust this agent?</div><div className="assistant-response" aria-live="polite"><p>{answer}</p>{!compact && <ul>{["Verified identity (ERC-8004)", "Health factor risk coverage", "No critical vulnerabilities", "Active BNB Chain usage"].map(item => <li key={item}><Check size={14} />{item}</li>)}</ul>}{status === "error" && <p className="ai-error">Try again or check your AI configuration.</p>}</div><form className="ask-input" onSubmit={ask} noValidate><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question..." aria-label="Ask HealthGuard AI" onKeyDown={(event) => { if (event.key === "Enter" && event.nativeEvent.isComposing) event.preventDefault(); }} /><button type="submit" aria-label="Send question" disabled={status === "loading"}>{status === "loading" ? <LoaderCircle className="spin" size={18} /> : <Send size={19} />}</button></form></section>;
 }

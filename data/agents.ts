@@ -1,106 +1,56 @@
+export type AgentIcon = "shield" | "trending-up" | "bar-chart-3" | "pie-chart";
+
 export interface Agent {
   id: string;
+  contractId: number;
   name: string;
-  category: string;
+  category: "Health Factor Monitoring" | "Yield Optimisation" | "Grid Trading" | "Rebalancing";
   description: string;
+  icon: AgentIcon;
+  color: string;
   trustScore: number;
-  users: string;
-  performance: string;
-  uptime: string;
   price: string;
   capabilities: string[];
+  activeUsers: string;
+  uptime: string;
+  performance: string;
   verified: boolean;
-  icon: string; // emoji/icon identifier
-  color: string;
+  developer: string;
+  network: "BNB Smart Chain Testnet";
+  camberAgentId: string;
 }
 
 export const agents: Agent[] = [
   {
-    id: "guardian-ai",
-    name: "Guardian AI",
-    category: "Security & Monitoring",
-    description:
-      "Monitors your DeFi positions, detects risks, and alerts you in real-time for liquidation protection.",
-    trustScore: 98,
-    users: "12,430",
-    performance: "99.8%",
-    uptime: "8 months",
-    price: "0.0001 BNB",
-    capabilities: [
-      "Wallet monitoring",
-      "Risk detection",
-      "Liquidation alerts",
-    ],
-    verified: true,
-    icon: "shield",
-    color: "#a855f7",
+    id: "healthguard-ai", contractId: 1, name: "HealthGuard AI", category: "Health Factor Monitoring",
+    description: "Monitors DeFi lending positions, tracks health factors, and alerts you before liquidation risk becomes critical.",
+    icon: "shield", color: "#a855f7", trustScore: 98, price: "0.0001", activeUsers: "12,430", uptime: "99.8%", performance: "8 months", verified: true,
+    capabilities: ["Health factor tracking", "Liquidation alerts", "Lending position monitoring", "Risk analysis"],
+    developer: "AgentTrust Labs", network: "BNB Smart Chain Testnet", camberAgentId: "healthguard-ai",
   },
   {
-    id: "yieldpilot",
-    name: "YieldPilot",
-    category: "Yield Optimization",
-    description:
-      "Finds the best DeFi yields on BNB Chain and automatically moves your capital to maximize returns.",
-    trustScore: 92,
-    users: "8,210",
-    performance: "97.2%",
-    uptime: "6 months",
-    price: "0.0001 BNB",
-    capabilities: [
-      "Yield strategies",
-      "Pool analysis",
-      "Auto rebalancing",
-    ],
-    verified: true,
-    icon: "trending-up",
-    color: "#10b981",
+    id: "yieldpilot", contractId: 2, name: "YieldPilot", category: "Yield Optimisation",
+    description: "Discovers and optimises yield opportunities across BNB Chain with actionable strategy recommendations.",
+    icon: "trending-up", color: "#10b981", trustScore: 92, price: "0.0001", activeUsers: "8,210", uptime: "97.2%", performance: "6 months", verified: true,
+    capabilities: ["APR comparison", "Yield discovery", "Strategy recommendations", "Capital optimization"],
+    developer: "Yield Labs", network: "BNB Smart Chain Testnet", camberAgentId: "yieldpilot-bnb",
   },
   {
-    id: "gridmaster",
-    name: "GridMaster",
-    category: "Grid Trading",
-    description:
-      "Executes grid trading strategies for volatile markets with automated order placement and tracking.",
-    trustScore: 92,
-    users: "6,980",
-    performance: "96.5%",
-    uptime: "4 months",
-    price: "0.0001 BNB",
-    capabilities: [
-      "Grid strategy setup",
-      "Market condition analysis",
-      "Automated execution",
-    ],
-    verified: true,
-    icon: "bar-chart-3",
-    color: "#3b82f6",
+    id: "gridmaster", contractId: 3, name: "GridMaster", category: "Grid Trading",
+    description: "Executes automated grid trading strategies with market analysis and continuous strategy monitoring.",
+    icon: "bar-chart-3", color: "#3b82f6", trustScore: 92, price: "0.0001", activeUsers: "6,980", uptime: "96.5%", performance: "4 months", verified: true,
+    capabilities: ["Trading range setup", "Market analysis", "Automated execution", "Strategy monitoring"],
+    developer: "Grid Systems", network: "BNB Smart Chain Testnet", camberAgentId: "gridmaster-bnb",
   },
   {
-    id: "risklens",
-    name: "RiskLens",
-    category: "Portfolio Analysis",
-    description:
-      "Analyzes your portfolio risk and provides actionable insights for safer investments.",
-    trustScore: 95,
-    users: "7,340",
-    performance: "98.1%",
-    uptime: "5 months",
-    price: "0.0001 BNB",
-    capabilities: [
-      "Portfolio risk scoring",
-      "Asset correlation analysis",
-      "Rebalancing suggestions",
-    ],
-    verified: true,
-    icon: "pie-chart",
-    color: "#f59e0b",
+    id: "rebalanceguard", contractId: 4, name: "RebalanceGuard", category: "Rebalancing",
+    description: "Maintains portfolio allocation targets with position optimisation and timely rebalancing suggestions.",
+    icon: "pie-chart", color: "#f59e0b", trustScore: 95, price: "0.0001", activeUsers: "7,340", uptime: "98.1%", performance: "5 months", verified: true,
+    capabilities: ["Portfolio balancing", "Asset allocation", "Position optimization", "Rebalancing suggestions"],
+    developer: "Balance Protocol", network: "BNB Smart Chain Testnet", camberAgentId: "rebalanceguard-bnb",
   },
 ];
 
-export const categories = [
-  "All Categories",
-  "Monitoring Agents",
-  "Grid Trading Agents",
-  "Health Factor Agents",
-  "Yield Agents",
-];
+export const categories = ["All Categories", "Health Factor Monitoring", "Yield Optimisation", "Grid Trading", "Rebalancing"] as const;
+
+export function getAgent(id: string) { return agents.find((agent) => agent.id === id); }
