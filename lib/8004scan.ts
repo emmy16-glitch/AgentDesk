@@ -21,6 +21,7 @@ export interface ScanAgent {
   star_count?: number | null;
   total_feedbacks?: number | null;
   created_at?: string | null;
+  tags?: string[] | string | null;
   [key: string]: unknown;
 }
 
@@ -60,7 +61,8 @@ export interface DiscoveredAgent {
   source: "8004scan";
   sourceCheckedAt: string;
   category: MarketplaceCategory | null;
-  categoryEvidence: string[];
+  categories: MarketplaceCategory[];
+  categoryEvidence: Partial<Record<MarketplaceCategory, string[]>>;
   operationalStatus: "registry-listed";
 }
 
@@ -72,7 +74,7 @@ const CATEGORY_TERMS: Record<MarketplaceCategory, string[]> = {
     "yield", "apy", "apr", "liquidity", "vault", "farm", "staking", "yield optimization", "yield optimisation",
   ],
   "Grid Trading": [
-    "grid trading", "grid", "trading bot", "automated trading", "range trading",
+    "grid trading", "grid-trading", "grid strategy", "grid bot", "automated grid", "range trading",
   ],
   Rebalancing: [
     "rebalance", "rebalancing", "portfolio allocation", "lp range", "liquidity position", "asset allocation",
@@ -82,7 +84,7 @@ const CATEGORY_TERMS: Record<MarketplaceCategory, string[]> = {
 const CATEGORY_SEARCH_QUERIES: Record<MarketplaceCategory, string> = {
   "Health Factor Monitoring": "BNB Chain health factor liquidation lending monitoring Venus Lista",
   "Yield Optimisation": "BNB Chain yield optimisation APR APY liquidity vault farming",
-  "Grid Trading": "BNB Chain grid trading automated trading strategy",
+  "Grid Trading": "BNB Chain grid trading automated grid strategy",
   Rebalancing: "BNB Chain portfolio rebalancing LP range asset allocation",
 };
 
@@ -109,20 +111,28 @@ function normalizeText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function tagText(tags: ScanAgent["tags"]): string {
+  if (Array.isArray(tags)) return tags.filter((tag): tag is string => typeof tag === "string").join(" ");
+  return normalizeText(tags);
+}
+
 export function classifyAgent(agent: ScanAgent): {
   category: MarketplaceCategory | null;
-  evidence: string[];
+  categories: MarketplaceCategory[];
+  evidence: Partial<Record<MarketplaceCategory, string[]>>;
 } {
-  const haystack = `${normalizeText(agent.name)} ${normalizeText(agent.description)}`.toLowerCase();
-  let best: { category: MarketplaceCategory; hits: string[] } | null = null;
+  const haystack = `${normalizeText(agent.name)} ${normalizeText(agent.description)} ${tagText(agent.tags)}`.toLowerCase();
+  const evidence: Partial<Record<MarketplaceCategory, string[]>> = {};
+  let primary: { category: MarketplaceCategory; hits: string[] } | null = null;
 
   for (const [category, terms] of Object.entries(CATEGORY_TERMS) as [MarketplaceCategory, string[]][]) {
     const hits = terms.filter((term) => haystack.includes(term));
-    if (!best || hits.length > best.hits.length) best = { category, hits };
+    if (hits.length) evidence[category] = hits;
+    if (hits.length && (!primary || hits.length > primary.hits.length)) primary = { category, hits };
   }
 
-  if (!best || best.hits.length === 0) return { category: null, evidence: [] };
-  return { category: best.category, evidence: best.hits };
+  const categories = (Object.keys(evidence) as MarketplaceCategory[]).filter((category) => (evidence[category]?.length ?? 0) > 0);
+  return { category: primary?.category ?? null, categories, evidence };
 }
 
 export function normalizeAgent(agent: ScanAgent, checkedAt: string): DiscoveredAgent {
@@ -149,6 +159,7 @@ export function normalizeAgent(agent: ScanAgent, checkedAt: string): DiscoveredA
     source: "8004scan",
     sourceCheckedAt: checkedAt,
     category: classification.category,
+    categories: classification.categories,
     categoryEvidence: classification.evidence,
     // Registry presence proves identity registration, not endpoint reachability.
     operationalStatus: "registry-listed",
@@ -187,10 +198,10 @@ export async function searchBscAgents(
   const checkedAt = new Date().toISOString();
 
   // Search ranking alone is not sufficient evidence for a category. Only keep
-  // records whose indexed name/description independently contains category evidence.
+  // records whose indexed name/description/tags independently contain category evidence.
   return result.data
     .map((agent) => normalizeAgent(agent, checkedAt))
-    .filter((agent) => agent.category === category && agent.categoryEvidence.length > 0);
+    .filter((agent) => agent.categories.includes(category));
 }
 
 export async function discoverAcrossRequiredCategories(limitPerCategory = 5): Promise<{
