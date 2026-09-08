@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check, ExternalLink, ShieldCheck } from "lucide-react";
-import type { DiscoveredAgent } from "@/lib/8004scan";
+import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 
 export default function RegistryAgentCard({ agent }: { agent: DiscoveredAgent }) {
   const owner = agent.ownerAddress
@@ -9,13 +9,14 @@ export default function RegistryAgentCard({ agent }: { agent: DiscoveredAgent })
   const registered = agent.registeredAt
     ? new Date(agent.registeredAt).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric" })
     : "Unknown";
+  const evidence = flattenEvidence(agent.categoryEvidence);
 
   return <article className="agent-card">
     <header>
       <div className="agent-icon" style={{ backgroundColor: "#2b2f3a" }}><ShieldCheck size={24} /></div>
       <div>
         <h2>{agent.name}</h2>
-        <p>{agent.category ?? "Unclassified"}</p>
+        <p>{agent.categories.length ? agent.categories.join(" · ") : "Unclassified"}</p>
       </div>
     </header>
 
@@ -37,7 +38,7 @@ export default function RegistryAgentCard({ agent }: { agent: DiscoveredAgent })
       <li><Check size={14} />Owner: {owner}</li>
       <li><Check size={14} />Registered: {registered}</li>
       {agent.protocols.slice(0, 3).map((protocol) => <li key={protocol}><Check size={14} />Protocol: {protocol}</li>)}
-      {agent.categoryEvidence.slice(0, 2).map((evidence) => <li key={evidence}><Check size={14} />Category evidence: “{evidence}”</li>)}
+      {evidence.slice(0, 3).map(({ category, term }) => <li key={`${category}:${term}`}><Check size={14} />{category}: “{term}”</li>)}
     </ul>
 
     <div className="agent-bottom">
@@ -53,4 +54,10 @@ export default function RegistryAgentCard({ agent }: { agent: DiscoveredAgent })
 
 function Metric({ value, label }: { value: string; label: string }) {
   return <div><dt>{value}</dt><dd>{label}</dd></div>;
+}
+
+function flattenEvidence(evidence: DiscoveredAgent["categoryEvidence"]): Array<{ category: MarketplaceCategory; term: string }> {
+  return (Object.entries(evidence) as [MarketplaceCategory, string[]][]).flatMap(([category, terms]) =>
+    terms.map((term) => ({ category, term })),
+  );
 }
