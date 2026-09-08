@@ -48,6 +48,10 @@ jobs:
           cat /tmp/agentdesk-next.log
           exit 1
 
+      - name: Live Phase 2 audition gate
+        if: github.event_name == 'pull_request' && github.head_ref == 'phase2/live-agent-auditions'
+        run: node scripts/live-audition-smoke.mjs
+
       - name: Source-backed browser QA
         run: npm run test:ui
 
