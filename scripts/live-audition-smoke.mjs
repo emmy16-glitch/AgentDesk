@@ -35,17 +35,6 @@ const attempts = [
   { tokenId: 266234, label: "PositionCrew grid audit candidate", task: gridTask },
 ];
 
-function diagnosticEvidence(result) {
-  if (!Array.isArray(result?.evidence)) return null;
-  const serviceResponse = result.evidence.find((item) => item?.kind === "service-response");
-  if (!serviceResponse?.raw) return null;
-  try {
-    return JSON.stringify(serviceResponse.raw).slice(0, 5000);
-  } catch {
-    return "[unserializable service response]";
-  }
-}
-
 const summaries = [];
 let completed = null;
 
@@ -60,6 +49,9 @@ for (const attempt of attempts) {
     });
     const body = await response.json();
     const result = body?.result;
+    const quote = result?.quote
+      ? { amount: result.quote.amount, asset: result.quote.asset, source: result.quote.source ?? null }
+      : null;
     const summary = {
       tokenId: attempt.tokenId,
       label: attempt.label,
@@ -69,7 +61,8 @@ for (const attempt of attempts) {
       protocol: result?.protocol ?? null,
       latencyMs: result?.latencyMs ?? null,
       evidenceCount: Array.isArray(result?.evidence) ? result.evidence.length : 0,
-      quoteReturned: Boolean(result?.quote),
+      quoteReturned: Boolean(quote),
+      quote,
       outputReturned: typeof result?.output === "string" && result.output.trim().length > 0,
       taskFit: result?.taskFit?.label ?? null,
       error: result?.error ?? body?.error ?? null,
@@ -77,11 +70,6 @@ for (const attempt of attempts) {
     };
     summaries.push(summary);
     console.log(`[live-audition] ${JSON.stringify(summary)}`);
-
-    const diagnostic = diagnosticEvidence(result);
-    if (!summary.outputReturned && diagnostic) {
-      console.log(`[live-audition-raw:${attempt.tokenId}] ${diagnostic}`);
-    }
 
     if (summary.auditionStatus === "completed" && summary.outputReturned) {
       completed = summary;
