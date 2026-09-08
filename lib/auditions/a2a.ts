@@ -6,6 +6,7 @@ import type { AuditionEvidence, AuditionQuote, AuditionStatus, AuditionTask } fr
 
 const MAX_CARD_BYTES = 256 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
+const MAX_RENDERED_OUTPUT_CHARS = 48_000;
 
 interface AgentCard {
   protocolVersion?: string;
@@ -52,14 +53,37 @@ function isAgentCard(value: unknown): value is AgentCard {
   return hasName && hasUrl && (hasProtocolVersion || hasSkills);
 }
 
-function textFromParts(parts: unknown): string[] {
+function renderStructuredData(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  try {
+    const rendered = JSON.stringify(value, null, 2);
+    return rendered.length > MAX_RENDERED_OUTPUT_CHARS
+      ? `${rendered.slice(0, MAX_RENDERED_OUTPUT_CHARS)}\n…[truncated by AgentDesk]`
+      : rendered;
+  } catch {
+    return null;
+  }
+}
+
+function contentFromParts(parts: unknown): string[] {
   if (!Array.isArray(parts)) return [];
   return parts.flatMap((part) => {
     if (!part || typeof part !== "object") return [];
     const value = part as Record<string, unknown>;
-    return value.kind === "text" && typeof value.text === "string" && value.text.trim()
-      ? [value.text.trim()]
-      : [];
+
+    if (value.kind === "text" && typeof value.text === "string" && value.text.trim()) {
+      return [value.text.trim()];
+    }
+
+    // A2A DataPart is a first-class task result. Preserve it as readable JSON
+    // rather than incorrectly declaring that a real agent returned no output.
+    if (value.kind === "data" && "data" in value) {
+      const rendered = renderStructuredData(value.data);
+      return rendered ? [rendered] : [];
+    }
+
+    return [];
   });
 }
 
@@ -70,24 +94,24 @@ function extractOutput(payload: unknown): string | null {
   if (!result || typeof result !== "object") return null;
   const value = result as Record<string, unknown>;
 
-  const direct = textFromParts(value.parts);
+  const direct = contentFromParts(value.parts);
   if (direct.length) return direct.join("\n\n");
 
   const status = value.status;
   if (status && typeof status === "object") {
     const statusMessage = (status as Record<string, unknown>).message;
     if (statusMessage && typeof statusMessage === "object") {
-      const statusText = textFromParts((statusMessage as Record<string, unknown>).parts);
-      if (statusText.length) return statusText.join("\n\n");
+      const statusContent = contentFromParts((statusMessage as Record<string, unknown>).parts);
+      if (statusContent.length) return statusContent.join("\n\n");
     }
   }
 
   if (Array.isArray(value.artifacts)) {
-    const artifactText = value.artifacts.flatMap((artifact) => {
+    const artifactContent = value.artifacts.flatMap((artifact) => {
       if (!artifact || typeof artifact !== "object") return [];
-      return textFromParts((artifact as Record<string, unknown>).parts);
+      return contentFromParts((artifact as Record<string, unknown>).parts);
     });
-    if (artifactText.length) return artifactText.join("\n\n");
+    if (artifactContent.length) return artifactContent.join("\n\n");
   }
 
   return null;
@@ -103,16 +127,9 @@ function taskState(payload: unknown): string | null {
   return typeof state === "string" ? state : null;
 }
 
-function extractQuote(payload: unknown): AuditionQuote | null {
-  if (!payload || typeof payload !== "object") return null;
-  const result = (payload as Record<string, unknown>).result;
-  if (!result || typeof result !== "object") return null;
-  const metadata = (result as Record<string, unknown>).metadata;
-  if (!metadata || typeof metadata !== "object") return null;
-  const quote = (metadata as Record<string, unknown>).quote;
-  if (!quote || typeof quote !== "object") return null;
-
-  const raw = quote as Record<string, unknown>;
+function parseQuote(value: unknown, source: string): AuditionQuote | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
   const amount = typeof raw.amount === "string" ? raw.amount.trim() : "";
   const asset = typeof raw.asset === "string" ? raw.asset.trim() : "";
   if (!amount || !asset) return null;
@@ -122,8 +139,40 @@ function extractQuote(payload: unknown): AuditionQuote | null {
     amount,
     asset,
     ...(expiresAt ? { expiresAt } : {}),
-    source: "A2A response metadata",
+    source,
   };
+}
+
+function findQuoteInValue(value: unknown, depth = 0): AuditionQuote | null {
+  if (depth > 4 || !value || typeof value !== "object") return null;
+
+  if (!Array.isArray(value)) {
+    const object = value as Record<string, unknown>;
+    const direct = parseQuote(object.quote, "A2A response data");
+    if (direct) return direct;
+  }
+
+  const children = Array.isArray(value) ? value : Object.values(value as Record<string, unknown>);
+  for (const child of children) {
+    const found = findQuoteInValue(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+function extractQuote(payload: unknown): AuditionQuote | null {
+  if (!payload || typeof payload !== "object") return null;
+  const result = (payload as Record<string, unknown>).result;
+  if (!result || typeof result !== "object") return null;
+  const value = result as Record<string, unknown>;
+
+  const metadata = value.metadata;
+  if (metadata && typeof metadata === "object") {
+    const direct = parseQuote((metadata as Record<string, unknown>).quote, "A2A response metadata");
+    if (direct) return direct;
+  }
+
+  return findQuoteInValue(value);
 }
 
 async function readJsonLimited(response: Response, maxBytes: number): Promise<unknown> {
@@ -378,7 +427,7 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
       output: null,
       quote: extractQuote(payload),
       evidence,
-      error: "A2A service responded but did not return a usable text result.",
+      error: "A2A service responded but did not return a usable text or structured-data result.",
     };
   }
 
