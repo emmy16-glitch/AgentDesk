@@ -1,12 +1,12 @@
 #!/bin/bash
 
-echo "🚀 Setting up AgentTrust Camber integration..."
+echo "Setting up AgentDesk Camber integration..."
 
 # Check Node
 echo ""
 echo "Checking Node..."
 node -v || {
-    echo "❌ Node.js not installed"
+    echo "Node.js not installed"
     exit 1
 }
 
@@ -14,7 +14,7 @@ node -v || {
 echo ""
 echo "Checking npm..."
 npm -v || {
-    echo "❌ npm not installed"
+    echo "npm not installed"
     exit 1
 }
 
@@ -23,24 +23,20 @@ echo ""
 echo "Installing project dependencies..."
 npm install
 
-
 # Check Camber CLI
 echo ""
 echo "Checking Camber CLI..."
 
 if command -v camber >/dev/null 2>&1
 then
-    echo "✅ Camber CLI already installed"
+    echo "Camber CLI already installed"
     camber --version
 else
     echo "Installing Camber CLI..."
-    
     curl -fsSL https://raw.githubusercontent.com/cambercloud/camber-cli/main/install.sh | bash
-    
     echo "Checking installation..."
     camber --version
 fi
-
 
 # Create env file
 echo ""
@@ -54,32 +50,23 @@ cat <<EOT > .env.local
 # Camber AI Integration
 CAMBER_TOKEN=
 EOT
-
-echo "✅ Created .env.local"
+    echo "Created .env.local"
 fi
 
-
 # Add env to gitignore
-
 echo ""
 echo "Updating .gitignore..."
-
 touch .gitignore
-
 grep -qxF ".env.local" .gitignore || echo ".env.local" >> .gitignore
-
-echo "✅ .env.local protected"
-
+echo ".env.local protected"
 
 echo ""
 echo "================================"
 echo "Setup complete"
 echo "================================"
-
 echo ""
 echo "Next step:"
 echo "Open .env.local and add your Camber token:"
 echo ""
 echo "CAMBER_TOKEN=your_token_here"
 echo ""
-
