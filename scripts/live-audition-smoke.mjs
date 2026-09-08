@@ -35,6 +35,17 @@ const attempts = [
   { tokenId: 266234, label: "PositionCrew grid audit candidate", task: gridTask },
 ];
 
+function diagnosticEvidence(result) {
+  if (!Array.isArray(result?.evidence)) return null;
+  const serviceResponse = result.evidence.find((item) => item?.kind === "service-response");
+  if (!serviceResponse?.raw) return null;
+  try {
+    return JSON.stringify(serviceResponse.raw).slice(0, 5000);
+  } catch {
+    return "[unserializable service response]";
+  }
+}
+
 const summaries = [];
 let completed = null;
 
@@ -66,6 +77,11 @@ for (const attempt of attempts) {
     };
     summaries.push(summary);
     console.log(`[live-audition] ${JSON.stringify(summary)}`);
+
+    const diagnostic = diagnosticEvidence(result);
+    if (!summary.outputReturned && diagnostic) {
+      console.log(`[live-audition-raw:${attempt.tokenId}] ${diagnostic}`);
+    }
 
     if (summary.auditionStatus === "completed" && summary.outputReturned) {
       completed = summary;
