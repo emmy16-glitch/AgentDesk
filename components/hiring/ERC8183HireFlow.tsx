@@ -18,7 +18,7 @@ import {
   type SupportedCommerceChainId,
 } from "@/lib/erc8183";
 import { buildCanonicalJobDescription, signedTaskContainsReceipt } from "@/lib/hiring/erc8183-negotiation";
-import type { Erc8183JobEvidence, Erc8183NegotiatedQuote } from "@/lib/hiring/types";
+import type { Erc8183JobEvidence, Erc8183NegotiatedQuote, ProviderNotificationEvidence } from "@/lib/hiring/types";
 
 interface Props {
   result: ComparedAudition;
@@ -30,6 +30,13 @@ interface NegotiateResponse {
   quote?: Erc8183NegotiatedQuote;
   error?: string;
   proofBoundary?: string;
+}
+
+interface NotifyResponse {
+  ok: boolean;
+  notified?: boolean;
+  detail?: string;
+  error?: string;
 }
 
 function short(value: string, left = 8, right = 6) {
@@ -109,6 +116,36 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     return hash as Hex;
   }
 
+  async function notifyProvider(jobId: bigint, chain: SupportedCommerceChainId): Promise<ProviderNotificationEvidence> {
+    const checkedAt = new Date().toISOString();
+    try {
+      const response = await fetch("/api/hiring/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId: result.candidate.tokenId, jobId: jobId.toString(), chainId: chain }),
+      });
+      const body = await response.json() as NotifyResponse;
+      if (!response.ok || !body.ok) {
+        return {
+          status: "unavailable",
+          detail: body.error || "Provider funded-job notification could not be confirmed.",
+          checkedAt,
+        };
+      }
+      return {
+        status: body.notified ? "sent" : "not-required",
+        detail: body.detail || (body.notified ? "Provider accepted funded-job notification." : "Provider push notification was not required."),
+        checkedAt,
+      };
+    } catch (cause) {
+      return {
+        status: "unavailable",
+        detail: cause instanceof Error ? cause.message : "Provider funded-job notification could not be confirmed.",
+        checkedAt,
+      };
+    }
+  }
+
   async function createAndFundJob() {
     if (!quote) return;
     if (!isConnected || !address) {
@@ -177,7 +214,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         throw new Error(`Wallet does not have enough $U for this ${formatUnits(budget, 18)} $U job.`);
       }
 
-      // Leave a long enough execution/evaluation window for real external providers.
       const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60);
       const createData = encodeFunctionData({
         abi: erc8183CommerceAbi,
@@ -235,7 +271,8 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const fundReceipt = await publicClient.waitForTransactionReceipt({ hash: fundTx });
       if (fundReceipt.status !== "success") throw new Error("ERC-8183 fund transaction reverted");
 
-      setJob({
+      const providerNotification = await notifyProvider(jobId, quote.chainId);
+      const fundedJob: Erc8183JobEvidence = {
         jobId: jobId.toString(),
         chainId: quote.chainId,
         receiptHash: receipt.receiptHash,
@@ -244,10 +281,16 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         budgetTx,
         ...(approvalTx ? { approvalTx } : {}),
         fundTx,
+        fundBlock: fundReceipt.blockNumber.toString(),
         provider: quote.provider,
         priceBaseUnits: quote.priceBaseUnits,
         fundedAt: new Date().toISOString(),
-      });
+        providerNotification,
+      };
+      setJob(fundedJob);
+      if (providerNotification.status === "unavailable") {
+        setError(`Escrow is funded, but provider delivery notification could not be confirmed: ${providerNotification.detail}`);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ERC-8183 job funding failed");
     } finally {
@@ -292,6 +335,8 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       <div className="hire-proof-row"><span>Audition receipt</span><b title={job.receiptHash}>{short(job.receiptHash)}</b></div>
       <div className="hire-proof-row"><span>Budget</span><b>{formatUnits(BigInt(job.priceBaseUnits), 18)} $U</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={job.provider}>{short(job.provider)}</b></div>
+      <div className="hire-proof-row"><span>Provider trigger</span><b>{job.providerNotification.status}</b></div>
+      <p className="hire-boundary">{job.providerNotification.detail}</p>
       <div className="hire-transactions">
         <a href={commerceExplorerTx(job.chainId, job.createTx)} target="_blank" rel="noreferrer">createJob <ExternalLink size={12} /></a>
         <a href={commerceExplorerTx(job.chainId, job.registerTx)} target="_blank" rel="noreferrer">registerJob <ExternalLink size={12} /></a>
