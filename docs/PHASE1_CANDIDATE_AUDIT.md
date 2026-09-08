@@ -101,19 +101,47 @@ Phase 1 status:
 
 ## Grid Trading
 
-### Current result: unresolved real-candidate gap
+### DeFiBot.agent — ERC-8004 #172801
 
-As of this audit, manual searches have found BSC autonomous trading agents, but no candidate has yet been verified whose own BSC ERC-8004 metadata clearly advertises **grid trading / grid strategy** strongly enough to satisfy AgentDesk's category-evidence rule.
+Discovery lead:
+- a public BNB hackathon marketplace independently reports ERC-8004 token `172801` on BSC mainnet;
+- the published agent description is: `Automate grid trading, DCA, and yield compounding across major DEXs while you sleep.`;
+- the same source reports an A2A protocol entry and gives a BSC registration transaction/block reference.
 
-Examples of generic trading agents are not automatically classified as Grid Trading.
+Why it is stronger than the earlier generic-trading leads:
+- `grid trading` is explicit in the agent description rather than inferred from generic trading capability;
+- it also legitimately appears relevant to Yield Optimisation, so it is another many-to-many case.
 
-This is deliberate. AgentDesk must show an empty/insufficient category rather than relabel a generic trading bot to satisfy the four-card layout.
+Phase 1 status:
+- external discovery lead: **found**
+- Grid Trading text evidence: **strong**
+- independent AgentDesk 8004scan lookup: **must be checked**
+- direct AgentDesk registry read: **must be checked through `/agents/172801`**
+- AgentDesk endpoint probe: **must be run and recorded**
+- Phase 2 grid audition: **not started**
 
-Next actions:
-1. use the live 8004scan semantic API with grid-specific queries;
-2. inspect matching ERC-8004 registration metadata and service definitions;
-3. probe qualifying BSC endpoints;
-4. if the ecosystem truly has no usable BSC Grid Trading agent, evaluate building/registering one as a separate agent project rather than fabricating marketplace inventory.
+### TradePilot.agent — ERC-8004 #177310
+
+Discovery lead:
+- publicly listed as a BSC ERC-8004 agent;
+- published description says: `Automated crypto trading bot with DCA, grid, and rebalancing strategies.`
+
+Why it is useful:
+- explicit `grid` and `rebalancing` language makes it a promising second comparison candidate;
+- the word `grid` alone is intentionally weaker evidence than the exact phrase `grid trading`, so AgentDesk should inspect the underlying registration metadata before classifying it automatically.
+
+Phase 1 status:
+- external discovery lead: **found**
+- Grid Trading text evidence: **promising but needs direct metadata verification**
+- direct AgentDesk registry read: **must be checked through `/agents/177310`**
+- AgentDesk endpoint probe: **must be run and recorded**
+- Phase 2 grid audition: **not started**
+
+### Grid Trading gap status
+
+The category is no longer a zero-candidate discovery gap. We now have at least one strong candidate lead and one promising comparison lead.
+
+It is **not yet operationally closed**. AgentDesk must verify these identities and advertised services through its own Phase 1 pipeline before presenting them as reachable/live candidates. Another marketplace's classification is useful discovery evidence, not AgentDesk's source of truth.
 
 ## Why this audit matters
 
