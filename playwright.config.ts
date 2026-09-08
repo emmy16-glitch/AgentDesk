@@ -14,13 +14,13 @@ export default defineConfig({
     baseURL: process.env.BASE_URL ?? "http://127.0.0.1:3000",
     launchOptions: {
       executablePath: CHROMIUM,
+      // Keep this minimal: forcing --use-gl=swiftshader / --in-process-gpu makes
+      // newer Chromium builds abort during ANGLE/Vulkan init in this sandbox.
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        "--in-process-gpu",
-        "--use-gl=swiftshader",
         "--font-render-hinting=none",
       ],
     },
