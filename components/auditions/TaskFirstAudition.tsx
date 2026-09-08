@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clock3, ExternalLink, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
+import { Check, Clock3, ExternalLink, Eye, EyeOff, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
+import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 import type { AuditionTask } from "@/lib/auditions/types";
 import type { ComparedAudition } from "@/lib/auditions/compare";
@@ -255,6 +256,7 @@ function Field({
 }
 
 function AuditionComparison({ response, names }: { response: BatchResponse; names: Map<number, string> }) {
+  const [blind, setBlind] = useState(true);
   const results = response.results ?? [];
   const failures = response.failures ?? [];
   return <section className="audition-comparison" id="comparison" aria-labelledby="comparison-heading">
@@ -263,16 +265,29 @@ function AuditionComparison({ response, names }: { response: BatchResponse; name
         <span className="comparison-eyebrow">LIVE EVIDENCE COMPARISON</span>
         <h3 id="comparison-heading">Who proved the best fit?</h3>
       </div>
-      {response.checkedAt ? <span className="comparison-freshness"><Clock3 size={14} /> checked {new Date(response.checkedAt).toLocaleTimeString()}</span> : null}
+      <div className="comparison-controls">
+        <button type="button" className="blind-toggle" onClick={() => setBlind((value) => !value)}>
+          {blind ? <><Eye size={14} /> Reveal identities</> : <><EyeOff size={14} /> Blind identities</>}
+        </button>
+        {response.checkedAt ? <span className="comparison-freshness"><Clock3 size={14} /> checked {new Date(response.checkedAt).toLocaleTimeString()}</span> : null}
+      </div>
     </div>
 
+    {blind && results.length ? <p className="blind-note">Blind audition mode is on: judge the evidence first. Identity and the paid-hire button stay hidden until you reveal the candidates.</p> : null}
+
     {results.length ? <div className="comparison-grid">
-      {results.map((result) => <ResultCard key={result.candidate.tokenId} result={result} name={names.get(result.candidate.tokenId)} />)}
+      {results.map((result, index) => <ResultCard
+        key={result.candidate.tokenId}
+        result={result}
+        name={names.get(result.candidate.tokenId)}
+        blind={blind}
+        alias={`Candidate ${String.fromCharCode(65 + index)}`}
+      />)}
     </div> : <div className="audition-empty">No candidate produced comparable evidence in this run.</div>}
 
     {failures.length ? <div className="identity-failures">
       <strong>Identity/runtime failures</strong>
-      {failures.map((failure) => <p key={failure.tokenId}>ERC-8004 #{failure.tokenId}: {failure.error}</p>)}
+      {failures.map((failure) => <p key={failure.tokenId}>{blind ? "A candidate" : `ERC-8004 #${failure.tokenId}`}: {failure.error}</p>)}
     </div> : null}
 
     {response.rankingMethod?.length ? <div className="ranking-method">
@@ -282,14 +297,17 @@ function AuditionComparison({ response, names }: { response: BatchResponse; name
   </section>;
 }
 
-function ResultCard({ result, name }: { result: ComparedAudition; name?: string }) {
+function ResultCard({ result, name, blind, alias }: { result: ComparedAudition; name?: string; blind: boolean; alias: string }) {
   const winner = result.comparison.label === "BEST FIT";
+  const actualName = name || `ERC-8004 Agent #${result.candidate.tokenId}`;
   return <article className={winner ? "audition-result winner" : "audition-result"}>
     <header>
       <div>
         <span className={`fit-label fit-${result.comparison.label.toLowerCase().replaceAll(" ", "-")}`}>{winner ? <Trophy size={13} /> : null}{result.comparison.label}</span>
-        <h4>{name || `ERC-8004 Agent #${result.candidate.tokenId}`}</h4>
-        <a href={result.candidate.sourceUrl} target="_blank" rel="noreferrer">ERC-8004 #{result.candidate.tokenId} <ExternalLink size={12} /></a>
+        <h4>{blind ? alias : actualName}</h4>
+        {blind
+          ? <span className="blind-identity">identity hidden until reveal</span>
+          : <a href={result.candidate.sourceUrl} target="_blank" rel="noreferrer">ERC-8004 #{result.candidate.tokenId} <ExternalLink size={12} /></a>}
       </div>
       <span className={`audition-status status-${result.status}`}>{result.status}</span>
     </header>
@@ -310,5 +328,8 @@ function ResultCard({ result, name }: { result: ComparedAudition; name?: string 
 
     {result.taskFit.missingEvidence.length ? <details className="evidence-details"><summary>Missing evidence ({result.taskFit.missingEvidence.length})</summary><ul>{result.taskFit.missingEvidence.map((reason) => <li key={reason}>{reason}</li>)}</ul></details> : null}
     <details className="evidence-details"><summary>Evidence trail ({result.evidence.length})</summary><ul>{result.evidence.map((item, index) => <li key={`${item.source}-${index}`}><b>{item.kind}</b> — {item.summary}</li>)}</ul></details>
+
+    {!blind && result.status === "completed" ? <ERC8183HireFlow result={result} agentName={actualName} /> : null}
+    {blind && result.status === "completed" ? <div className="blind-hire-lock">Reveal identities before opening a paid hire.</div> : null}
   </article>;
 }
