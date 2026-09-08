@@ -46,6 +46,27 @@ const discoveredAgents = [
     },
     operationalStatus: "registry-listed",
   },
+  {
+    registry: "ERC-8004",
+    chainId: 56,
+    tokenId: 6443,
+    agentId: "56:6443",
+    name: "Mock Yield Runner",
+    description: "Optimises DeFi yield and farming positions with current market analysis.",
+    ownerAddress: "0x3333333333333333333333333333333333333333",
+    protocols: ["A2A", "Web"],
+    sourceScore: 69,
+    feedbackCount: 3,
+    starCount: 1,
+    registeredAt: "2026-09-03T00:00:00.000Z",
+    sourceUrl: "https://8004scan.io/agents/bsc/6443",
+    source: "8004scan",
+    sourceCheckedAt: "2026-09-08T20:00:00.000Z",
+    category: "Yield Optimisation",
+    categories: ["Yield Optimisation"],
+    categoryEvidence: { "Yield Optimisation": ["yield", "farm"] },
+    operationalStatus: "registry-listed",
+  },
 ];
 
 async function mockDiscovery(page: Page) {
@@ -64,6 +85,70 @@ async function mockDiscovery(page: Page) {
   });
 }
 
+async function mockAuditions(page: Page) {
+  await page.route("**/api/auditions/batch", async (route) => {
+    const body = route.request().postDataJSON() as { tokenIds: number[]; task: { category: string } };
+    expect(body.task.category).toBe("Yield Optimisation");
+    expect(body.tokenIds).toEqual([171927, 6443]);
+
+    const result = (tokenId: number, rank: number, latencyMs: number, quote: boolean) => ({
+      candidate: {
+        chainId: 56,
+        tokenId,
+        registry: "ERC-8004",
+        registryAddress: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        owner: tokenId === 171927 ? "0x2222222222222222222222222222222222222222" : "0x3333333333333333333333333333333333333333",
+        agentWallet: null,
+        sourceUrl: `https://8004scan.io/agents/bsc/${tokenId}`,
+      },
+      task: body.task,
+      status: "completed",
+      protocol: "A2A",
+      latencyMs,
+      checkedAt: "2026-09-08T22:20:00.000Z",
+      quote: quote ? { amount: "0.01", asset: "BNB", source: "A2A response metadata" } : null,
+      output: tokenId === 171927
+        ? "Proposed a diversified BNB Chain yield route with explicit assumptions and current evidence."
+        : "Proposed a yield-farming route with current market assumptions.",
+      evidence: [
+        { kind: "identity", source: "registry", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved identity" },
+        { kind: "agent-card", source: "card", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved A2A card" },
+        { kind: "service-response", source: "service", observedAt: "2026-09-08T22:20:00.000Z", summary: "Live response" },
+      ],
+      taskFit: {
+        label: "PARTIAL FIT",
+        reasons: ["Live task-specific response returned."],
+        missingEvidence: ["Economic correctness not independently validated."],
+      },
+      comparison: {
+        rank,
+        label: rank === 1 ? "BEST FIT" : "STRONG FIT",
+        reasons: rank === 1
+          ? ["Completed the same bounded task-specific audition as the other candidates.", "Returned a usable task-specific result.", "Returned a machine-readable quote of 0.01 BNB."]
+          : ["Completed the same bounded task-specific audition as the other candidates.", "Returned a usable task-specific result."],
+      },
+    });
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        checkedAt: "2026-09-08T22:20:00.000Z",
+        results: [result(171927, 1, 840, true), result(6443, 2, 1220, false)],
+        failures: [],
+        rankingMethod: [
+          "audition completion status",
+          "usable task-specific output",
+          "machine-readable quote availability",
+          "preserved evidence count",
+          "measured latency",
+        ],
+      }),
+    });
+  });
+}
+
 async function assertNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -71,7 +156,7 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(overflow, "horizontal overflow in px").toBeLessThanOrEqual(1);
 }
 
-test("source-backed marketplace renders without legacy claims", async ({ page }) => {
+test("task-first source-backed marketplace renders without legacy claims", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (message) => message.type() === "error" && errors.push(message.text()));
   page.on("pageerror", (error) => errors.push(String(error)));
@@ -82,8 +167,9 @@ test("source-backed marketplace renders without legacy claims", async ({ page })
 
   await expect(page.getByText("AgentDesk").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: /don't trust the profile/i })).toBeVisible();
-  await expect(page.getByText("Mock Venus Monitor")).toBeVisible();
-  await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What do you want an agent to do?" })).toBeVisible();
+  await expect(page.getByText("Mock DeFi Matrix").first()).toBeVisible();
+  await expect(page.getByText("Mock Yield Runner").first()).toBeVisible();
   await expect(page.getByText(/Sourced from ERC-8004 \/ 8004scan/)).toBeVisible();
 
   for (const forbidden of ["12,430", "99.8%", "GridMaster", "RebalanceGuard", "Trust Score"]) {
@@ -96,26 +182,46 @@ test("source-backed marketplace renders without legacy claims", async ({ page })
   expect(errors.filter((error) => !ignored.test(error))).toEqual([]);
 });
 
-test("all required category controls remain reachable and filtering is evidence-backed", async ({ page }) => {
+test("all task families remain reachable and candidate selection is evidence-backed", async ({ page }) => {
   await mockDiscovery(page);
   await page.goto("/", { waitUntil: "networkidle" });
 
+  const workbench = page.locator("#audition");
+  const taskTabs = workbench.getByLabel("Task family");
   for (const label of [
     "Health Factor Monitoring",
     "Yield Optimisation",
     "Grid Trading",
     "Rebalancing",
   ]) {
-    await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await expect(taskTabs.getByRole("button", { name: label, exact: true })).toBeVisible();
   }
 
-  await page.getByRole("button", { name: "Rebalancing", exact: true }).click();
-  await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
-  await expect(page.getByText("Mock Venus Monitor")).toHaveCount(0);
+  await taskTabs.getByRole("button", { name: "Rebalancing", exact: true }).click();
+  await expect(workbench.getByText("Mock DeFi Matrix").first()).toBeVisible();
+  await expect(workbench.getByText("Mock Venus Monitor")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Grid Trading", exact: true }).click();
-  await expect(page.getByText("No source-qualified candidates yet")).toBeVisible();
+  await taskTabs.getByRole("button", { name: "Grid Trading", exact: true }).click();
+  await expect(workbench.getByText(/No source-qualified candidates currently match this task family/i)).toBeVisible();
 
+  await assertNoHorizontalOverflow(page);
+});
+
+test("two live auditions produce a transparent comparison instead of a trust score", async ({ page }) => {
+  await mockDiscovery(page);
+  await mockAuditions(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await expect(page.getByText("2/4 selected")).toBeVisible();
+  await page.getByRole("button", { name: "Run live auditions (2)" }).click();
+
+  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
+  await expect(page.getByText("BEST FIT", { exact: true })).toBeVisible();
+  await expect(page.getByText("STRONG FIT", { exact: true })).toBeVisible();
+  await expect(page.getByText("840 ms", { exact: true })).toBeVisible();
+  await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
+  await expect(page.getByText(/No global trust percentage is used/i)).toBeVisible();
+  await expect(page.getByText("Trust Score", { exact: false })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 });
 
@@ -129,7 +235,7 @@ test("discovery failure never falls back to fabricated agents", async ({ page })
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByText("Live discovery unavailable")).toBeVisible();
+  await expect(page.getByText("Live discovery unavailable", { exact: true }).last()).toBeVisible();
   await expect(page.getByText(/will not silently replace failed registry discovery/i)).toBeVisible();
   await expect(page.getByText("GridMaster")).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
