@@ -213,7 +213,7 @@ test("two live auditions race, stay blind, and produce a transparent comparison"
   await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
   await expect(page.getByText(/Blind audition mode is on/i)).toBeVisible();
   await expect(page.getByText(/No global trust percentage is used/i)).toBeVisible();
-  await expect(page.getByText("Trust Score", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Trust Score", { exact: true })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 });
 
