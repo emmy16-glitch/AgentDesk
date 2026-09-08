@@ -9,7 +9,7 @@ import WalletPanel from "@/components/WalletPanel";
 import AIAssistant from "@/components/AIAssistant";
 import ActiveAgents from "@/components/ActiveAgents";
 import StatsSection from "@/components/StatsSection";
-import type { DiscoveredAgent } from "@/lib/8004scan";
+import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 
 interface DiscoveryResponse {
   ok: boolean;
@@ -52,9 +52,11 @@ export default function HomePage() {
 
   const filteredAgents = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const selectedCategory = activeCategory === "All Categories" ? null : activeCategory as MarketplaceCategory;
+
     return agents.filter((agent) =>
-      (activeCategory === "All Categories" || activeCategory === agent.category) &&
-      (!needle || `${agent.name} ${agent.category ?? ""} ${agent.description}`.toLowerCase().includes(needle)),
+      (!selectedCategory || agent.categories.includes(selectedCategory)) &&
+      (!needle || `${agent.name} ${agent.categories.join(" ")} ${agent.description}`.toLowerCase().includes(needle)),
     );
   }, [activeCategory, agents, query]);
 
