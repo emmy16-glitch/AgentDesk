@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Clock3, ExternalLink, Eye, EyeOff, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
+import IndependentCheck from "@/components/auditions/IndependentCheck";
 import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 import type { AuditionResult, AuditionTask } from "@/lib/auditions/types";
@@ -192,8 +193,8 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
         }
       }));
 
-      const actualResults = outcomes.flatMap((item) => item.result ? [item.result] : []);
-      const failures = outcomes.flatMap((item) => item.error ? [{ tokenId: item.tokenId, error: item.error }] : []);
+      const actualResults = outcomes.flatMap((entry) => entry.result ? [entry.result] : []);
+      const failures = outcomes.flatMap((entry) => entry.error ? [{ tokenId: entry.tokenId, error: entry.error }] : []);
       setResponse({
         ok: true,
         checkedAt: new Date().toISOString(),
@@ -420,6 +421,7 @@ function ResultCard({ result, name, blind, alias }: { result: ComparedAudition; 
     {result.taskFit.missingEvidence.length ? <details className="evidence-details"><summary>Missing evidence ({result.taskFit.missingEvidence.length})</summary><ul>{result.taskFit.missingEvidence.map((reason) => <li key={reason}>{reason}</li>)}</ul></details> : null}
     <details className="evidence-details"><summary>Evidence trail ({result.evidence.length})</summary><ul>{result.evidence.map((item, index) => <li key={`${item.source}-${index}`}><b>{item.kind}</b> — {item.summary}</li>)}</ul></details>
 
+    {result.status === "completed" ? <IndependentCheck result={result} /> : null}
     {!blind && result.status === "completed" ? <ERC8183HireFlow result={result} agentName={actualName} /> : null}
     {blind && result.status === "completed" ? <div className="blind-hire-lock">Reveal identities before opening a paid hire.</div> : null}
   </article>;
