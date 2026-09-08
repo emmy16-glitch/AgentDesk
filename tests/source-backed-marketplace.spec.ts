@@ -86,12 +86,15 @@ async function mockDiscovery(page: Page) {
 }
 
 async function mockAuditions(page: Page) {
-  await page.route("**/api/auditions/batch", async (route) => {
-    const body = route.request().postDataJSON() as { tokenIds: number[]; task: { category: string } };
+  await page.route("**/api/auditions", async (route) => {
+    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string } };
     expect(body.task.category).toBe("Yield Optimisation");
-    expect(body.tokenIds).toEqual([171927, 6443]);
+    expect([171927, 6443]).toContain(body.tokenId);
 
-    const result = (tokenId: number, rank: number, latencyMs: number, quote: boolean) => ({
+    const tokenId = body.tokenId;
+    const latencyMs = tokenId === 171927 ? 840 : 1220;
+    const quote = tokenId === 171927;
+    const result = {
       candidate: {
         chainId: 56,
         tokenId,
@@ -120,31 +123,13 @@ async function mockAuditions(page: Page) {
         reasons: ["Live task-specific response returned."],
         missingEvidence: ["Economic correctness not independently validated."],
       },
-      comparison: {
-        rank,
-        label: rank === 1 ? "BEST FIT" : "STRONG FIT",
-        reasons: rank === 1
-          ? ["Completed the same bounded task-specific audition as the other candidates.", "Returned a usable task-specific result.", "Returned a machine-readable quote of 0.01 BNB."]
-          : ["Completed the same bounded task-specific audition as the other candidates.", "Returned a usable task-specific result."],
-      },
-    });
+    };
 
+    if (tokenId === 6443) await new Promise((resolve) => setTimeout(resolve, 80));
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        checkedAt: "2026-09-08T22:20:00.000Z",
-        results: [result(171927, 1, 840, true), result(6443, 2, 1220, false)],
-        failures: [],
-        rankingMethod: [
-          "audition completion status",
-          "usable task-specific output",
-          "machine-readable quote availability",
-          "preserved evidence count",
-          "measured latency",
-        ],
-      }),
+      body: JSON.stringify({ ok: true, result }),
     });
   });
 }
@@ -207,7 +192,7 @@ test("all task families remain reachable and candidate selection is evidence-bac
   await assertNoHorizontalOverflow(page);
 });
 
-test("two live auditions produce a transparent comparison instead of a trust score", async ({ page }) => {
+test("two live auditions race, stay blind, and produce a transparent comparison", async ({ page }) => {
   await mockDiscovery(page);
   await mockAuditions(page);
   await page.goto("/", { waitUntil: "networkidle" });
@@ -215,11 +200,18 @@ test("two live auditions produce a transparent comparison instead of a trust sco
   await expect(page.getByText("2/4 selected")).toBeVisible();
   await page.getByRole("button", { name: "Run live auditions (2)" }).click();
 
+  const race = page.getByLabel("Live audition race");
+  await expect(race).toBeVisible();
+  await expect(race.getByText("Candidate A")).toBeVisible();
+  await expect(race.getByText("Candidate B")).toBeVisible();
+  await expect(race.getByText(/2\/2 finished/)).toBeVisible();
+
   await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
   await expect(page.getByText("BEST FIT", { exact: true })).toBeVisible();
   await expect(page.getByText("STRONG FIT", { exact: true })).toBeVisible();
   await expect(page.getByText("840 ms", { exact: true })).toBeVisible();
   await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Blind audition mode is on/i)).toBeVisible();
   await expect(page.getByText(/No global trust percentage is used/i)).toBeVisible();
   await expect(page.getByText("Trust Score", { exact: false })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
