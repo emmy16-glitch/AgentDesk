@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAgent } from "@/data/agents";
 import { chatWithCamber } from "@/lib/camber";
+import { getCamberAssistant } from "@/lib/camber-agent-config";
 
 export const runtime = "nodejs";
 
@@ -23,13 +23,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please send a message between 1 and 4,000 characters." }, { status: 400 });
   }
 
-  const agent = getAgent(agentId);
-  if (!agent?.camberAgent) {
+  const assistant = getCamberAssistant(agentId);
+  if (!assistant) {
     return NextResponse.json({ error: unavailableMessage }, { status: 503 });
   }
 
   try {
-    const response = await chatWithCamber({ agentId: agent.id, agentTag: agent.camberAgent, message, conversationId });
+    const response = await chatWithCamber({
+      agentId: assistant.id,
+      agentTag: assistant.agentTag,
+      message,
+      conversationId,
+    });
     return NextResponse.json(response);
   } catch {
     // Do not return CLI errors: they may contain implementation details or credentials.
