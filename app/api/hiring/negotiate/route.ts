@@ -115,8 +115,6 @@ export async function POST(request: NextRequest) {
       expectedVerifyingContract: deployment.commerce as Address,
     });
 
-    // Build now as a pre-flight compatibility gate. The client will construct
-    // this exact canonical description again immediately before createJob.
     const description = buildCanonicalJobDescription(parsed.envelope);
     if (!description.toLowerCase().includes(auditionReceiptHash.toLowerCase())) {
       throw new Error("Canonical ERC-8183 job description lost the audition receipt commitment");
@@ -142,6 +140,7 @@ export async function POST(request: NextRequest) {
         verifyingContract: deployment.commerce,
         serviceEndpoint: transport.serviceEndpoint,
         negotiationEndpoint: transport.negotiationEndpoint,
+        transport: transport.transport,
         taskDescription,
         auditionReceiptHash,
         task: auditionRequest.task,
