@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLink, Loader2, LockKeyhole, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
+import { ExternalLink, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
 import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { encodeFunctionData, formatUnits, isAddress, type Address, type Hex } from "viem";
+import JobEvidencePanel from "@/components/hiring/JobEvidencePanel";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
 import {
   EMPTY_BYTES,
   ERC8183_DEPLOYMENTS,
   JOB_CREATED_TOPIC,
-  JOB_STATUS_LABELS,
   commerceExplorerTx,
   erc20PaymentAbi,
   erc8183CommerceAbi,
@@ -29,13 +29,6 @@ interface NegotiateResponse {
   quote?: Erc8183NegotiatedQuote;
   error?: string;
   proofBoundary?: string;
-}
-
-interface JobSnapshot {
-  status: string;
-  budget: string;
-  provider: string;
-  expiredAt: string;
 }
 
 function short(value: string, left = 8, right = 6) {
@@ -73,11 +66,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
   const { switchChainAsync } = useSwitchChain();
   const [negotiating, setNegotiating] = useState(false);
   const [funding, setFunding] = useState(false);
-  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Erc8183NegotiatedQuote | null>(null);
   const [job, setJob] = useState<Erc8183JobEvidence | null>(null);
-  const [snapshot, setSnapshot] = useState<JobSnapshot | null>(null);
   const receipt = useMemo(() => buildAuditionReceipt(result), [result]);
   const commerceChainId: SupportedCommerceChainId = quote?.chainId ?? job?.chainId ?? 56;
   const publicClient = usePublicClient({ chainId: commerceChainId });
@@ -92,7 +83,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     setError(null);
     setQuote(null);
     setJob(null);
-    setSnapshot(null);
     try {
       const response = await fetch("/api/hiring/negotiate", {
         method: "POST",
@@ -230,7 +220,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const fundReceipt = await publicClient.waitForTransactionReceipt({ hash: fundTx });
       if (fundReceipt.status !== "success") throw new Error("ERC-8183 fund transaction reverted");
 
-      const evidence: Erc8183JobEvidence = {
+      setJob({
         jobId: jobId.toString(),
         chainId: quote.chainId,
         receiptHash: receipt.receiptHash,
@@ -242,42 +232,11 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         provider: quote.provider,
         priceBaseUnits: quote.priceBaseUnits,
         fundedAt: new Date().toISOString(),
-      };
-      setJob(evidence);
-      await refreshJob(evidence);
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ERC-8183 job funding failed");
     } finally {
       setFunding(false);
-    }
-  }
-
-  async function refreshJob(target = job) {
-    if (!target) return;
-    if (!publicClient || target.chainId !== commerceChainId) {
-      setError("BNB Chain RPC client is not ready for this job network yet.");
-      return;
-    }
-    setChecking(true);
-    setError(null);
-    try {
-      const deployment = ERC8183_DEPLOYMENTS[target.chainId];
-      const current = await publicClient.readContract({
-        address: deployment.commerce,
-        abi: erc8183CommerceAbi,
-        functionName: "getJob",
-        args: [BigInt(target.jobId)],
-      });
-      setSnapshot({
-        provider: current.provider,
-        budget: current.budget.toString(),
-        expiredAt: new Date(Number(current.expiredAt) * 1000).toISOString(),
-        status: JOB_STATUS_LABELS[current.status] ?? `UNKNOWN(${current.status})`,
-      });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not read ERC-8183 job state");
-    } finally {
-      setChecking(false);
     }
   }
 
@@ -311,10 +270,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       <button type="button" className="hire-link-button" onClick={negotiate} disabled={negotiating || funding}>Refresh quote</button>
     </div> : null}
 
-    {job ? <div className="hire-job">
+    {job && quote ? <div className="hire-job">
       <div className="hire-job-banner"><ShieldCheck size={17} /><div><strong>Escrow funded</strong><span>ERC-8183 job #{job.jobId} now has an independently inspectable on-chain reference.</span></div></div>
       <div className="hire-proof-row"><span>Audition receipt</span><b title={job.receiptHash}>{short(job.receiptHash)}</b></div>
-      <div className="hire-proof-row"><span>Job state</span><b>{snapshot?.status ?? "checking…"}</b></div>
       <div className="hire-proof-row"><span>Budget</span><b>{formatUnits(BigInt(job.priceBaseUnits), 18)} $U</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={job.provider}>{short(job.provider)}</b></div>
       <div className="hire-transactions">
@@ -324,10 +282,12 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         {job.approvalTx ? <a href={commerceExplorerTx(job.chainId, job.approvalTx)} target="_blank" rel="noreferrer">approve $U <ExternalLink size={12} /></a> : null}
         <a href={commerceExplorerTx(job.chainId, job.fundTx)} target="_blank" rel="noreferrer">fund <ExternalLink size={12} /></a>
       </div>
-      <button type="button" className="hire-action" disabled={checking} onClick={() => refreshJob()}>
-        {checking ? <><Loader2 className="spin" size={15} /> Checking job…</> : <><RefreshCw size={15} /> Check provider progress</>}
-      </button>
-      <p className="hire-boundary">FUNDED is not completion. AgentDesk will only show delivery/completion after the provider submits and the ERC-8183 state proves it.</p>
+      <JobEvidencePanel
+        job={job}
+        tokenId={result.candidate.tokenId}
+        category={result.task.category}
+        serviceEndpoint={quote.serviceEndpoint}
+      />
     </div> : null}
 
     {error ? <div className="hire-error" role="alert">{error}</div> : null}
