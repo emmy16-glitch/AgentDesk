@@ -4,14 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Clock3, ExternalLink, Eye, EyeOff, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
 import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
-import type { AuditionTask } from "@/lib/auditions/types";
-import type { ComparedAudition } from "@/lib/auditions/compare";
+import type { AuditionResult, AuditionTask } from "@/lib/auditions/types";
+import { compareAuditions, type ComparedAudition } from "@/lib/auditions/compare";
 
 const CATEGORIES: MarketplaceCategory[] = [
   "Health Factor Monitoring",
   "Yield Optimisation",
   "Grid Trading",
   "Rebalancing",
+];
+
+const RANKING_METHOD = [
+  "audition completion status",
+  "usable task-specific output",
+  "machine-readable quote availability",
+  "preserved evidence count",
+  "measured latency",
 ];
 
 interface BatchResponse {
@@ -21,6 +29,22 @@ interface BatchResponse {
   results?: ComparedAudition[];
   failures?: Array<{ tokenId: number; error: string }>;
   rankingMethod?: string[];
+}
+
+interface SingleResponse {
+  ok: boolean;
+  error?: string;
+  result?: AuditionResult;
+}
+
+type RaceStatus = AuditionResult["status"] | "running" | "request-error";
+interface RaceEntry {
+  tokenId: number;
+  startedAt: number;
+  finishedAt?: number;
+  status: RaceStatus;
+  latencyMs?: number | null;
+  error?: string;
 }
 
 interface Props {
@@ -33,6 +57,7 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
   const [category, setCategory] = useState<MarketplaceCategory>("Yield Optimisation");
   const [selected, setSelected] = useState<number[]>([]);
   const [running, setRunning] = useState(false);
+  const [race, setRace] = useState<RaceEntry[]>([]);
   const [runError, setRunError] = useState<string | null>(null);
   const [response, setResponse] = useState<BatchResponse | null>(null);
 
@@ -58,6 +83,7 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
   useEffect(() => {
     setSelected(candidates.slice(0, 3).map((agent) => agent.tokenId));
     setResponse(null);
+    setRace([]);
     setRunError(null);
   }, [category, candidates]);
 
@@ -132,15 +158,50 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
     setRunning(true);
     setRunError(null);
     setResponse(null);
+    const startedAt = Date.now();
+    setRace(selected.map((tokenId) => ({ tokenId, startedAt, status: "running" })));
+
     try {
-      const request = await fetch("/api/auditions/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenIds: selected, task }),
+      const outcomes = await Promise.all(selected.map(async (tokenId) => {
+        try {
+          const request = await fetch("/api/auditions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tokenId, task }),
+          });
+          const body = await request.json() as SingleResponse;
+          if (!request.ok || !body.ok || !body.result) throw new Error(body.error || "Live audition request failed");
+          const result = body.result;
+          setRace((current) => current.map((entry) => entry.tokenId === tokenId ? {
+            ...entry,
+            finishedAt: Date.now(),
+            status: result.status,
+            latencyMs: result.latencyMs,
+            error: result.error ?? undefined,
+          } : entry));
+          return { tokenId, result, error: null as string | null };
+        } catch (cause) {
+          const error = cause instanceof Error ? cause.message : "Live audition request failed";
+          setRace((current) => current.map((entry) => entry.tokenId === tokenId ? {
+            ...entry,
+            finishedAt: Date.now(),
+            status: "request-error",
+            error,
+          } : entry));
+          return { tokenId, result: null as AuditionResult | null, error };
+        }
+      }));
+
+      const actualResults = outcomes.flatMap((item) => item.result ? [item.result] : []);
+      const failures = outcomes.flatMap((item) => item.error ? [{ tokenId: item.tokenId, error: item.error }] : []);
+      setResponse({
+        ok: true,
+        checkedAt: new Date().toISOString(),
+        results: compareAuditions(actualResults),
+        failures,
+        rankingMethod: RANKING_METHOD,
       });
-      const body = await request.json() as BatchResponse;
-      if (!request.ok || !body.ok) throw new Error(body.error || "Live auditions failed");
-      setResponse(body);
+      if (!actualResults.length) setRunError("No candidate produced a comparable live audition result.");
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Live auditions failed");
     } finally {
@@ -226,10 +287,11 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
 
       {runError ? <div className="audition-run-error" role="alert">{runError}</div> : null}
       <button className="gold-button audition-submit" disabled={running || selected.length === 0 || Boolean(discoveryError)} type="submit">
-        {running ? <><Loader2 className="spin" size={17} /> Auditioning {selected.length} agent{selected.length === 1 ? "" : "s"}…</> : <><FlaskConical size={17} /> Run live auditions ({selected.length})</>}
+        {running ? <><Loader2 className="spin" size={17} /> Live audition race running…</> : <><FlaskConical size={17} /> Run live auditions ({selected.length})</>}
       </button>
     </form>
 
+    {race.length ? <RaceBoard race={race} /> : null}
     {response ? <AuditionComparison response={response} names={names} /> : null}
   </section>;
 }
@@ -253,6 +315,35 @@ function Field({
     <span>{label}{required ? <b aria-hidden="true"> *</b> : null}</span>
     <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} />
   </label>;
+}
+
+function RaceBoard({ race }: { race: RaceEntry[] }) {
+  const [now, setNow] = useState(Date.now());
+  const active = race.some((entry) => entry.status === "running");
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  return <section className="audition-race" aria-label="Live audition race">
+    <div className="race-heading"><span>LIVE AUDITION RACE</span><strong>{race.filter((entry) => entry.status !== "running").length}/{race.length} finished</strong></div>
+    <div className="race-lanes">
+      {race.map((entry, index) => {
+        const elapsed = (entry.finishedAt ?? now) - entry.startedAt;
+        const alias = `Candidate ${String.fromCharCode(65 + index)}`;
+        return <div className={`race-lane race-${entry.status}`} key={entry.tokenId}>
+          <div><span>{alias}</span><small>identity stays blind during the race</small></div>
+          <div className="race-state">
+            {entry.status === "running" ? <Loader2 size={12} className="spin" /> : null}
+            <b>{entry.status}</b>
+            <time>{entry.latencyMs !== undefined && entry.latencyMs !== null ? `${entry.latencyMs} ms service` : `${(elapsed / 1000).toFixed(1)}s elapsed`}</time>
+          </div>
+          {entry.error ? <p>{entry.error}</p> : null}
+        </div>;
+      })}
+    </div>
+  </section>;
 }
 
 function AuditionComparison({ response, names }: { response: BatchResponse; names: Map<number, string> }) {
