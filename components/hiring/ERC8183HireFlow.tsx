@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ExternalLink, Loader2, LockKeyhole, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
-import { getPublicClient, getWalletClient } from "@wagmi/core";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { formatUnits, isAddress, type Address, type Hex } from "viem";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
@@ -19,7 +18,6 @@ import {
   type SupportedCommerceChainId,
 } from "@/lib/erc8183";
 import type { Erc8183JobEvidence, Erc8183NegotiatedQuote } from "@/lib/hiring/types";
-import { wagmiConfig } from "@/lib/wagmi";
 
 interface Props {
   result: ComparedAudition;
@@ -81,6 +79,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
   const [job, setJob] = useState<Erc8183JobEvidence | null>(null);
   const [snapshot, setSnapshot] = useState<JobSnapshot | null>(null);
   const receipt = useMemo(() => buildAuditionReceipt(result), [result]);
+  const commerceChainId: SupportedCommerceChainId = quote?.chainId ?? job?.chainId ?? 56;
+  const publicClient = usePublicClient({ chainId: commerceChainId });
+  const { data: walletClient } = useWalletClient({ chainId: commerceChainId });
 
   const quotedDisplay = quote
     ? `${formatUnits(BigInt(quote.priceBaseUnits), 18)} ${quote.currency}`
@@ -123,19 +124,29 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       return;
     }
 
+    if (chainId !== quote.chainId) {
+      setFunding(true);
+      setError(null);
+      try {
+        await switchChainAsync({ chainId: quote.chainId });
+        setError(`Wallet switched to ${ERC8183_DEPLOYMENTS[quote.chainId].name}. Confirm the hire again to create and fund the job.`);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not switch the wallet to the quoted BNB network");
+      } finally {
+        setFunding(false);
+      }
+      return;
+    }
+
+    if (!publicClient || !walletClient?.account) {
+      setError("Wallet/RPC client is still syncing after the network change. Try the hire action again.");
+      return;
+    }
+
     setFunding(true);
     setError(null);
     try {
-      if (chainId !== quote.chainId) {
-        await switchChainAsync({ chainId: quote.chainId });
-      }
-
       const deployment = ERC8183_DEPLOYMENTS[quote.chainId];
-      const publicClient = getPublicClient(wagmiConfig, { chainId: quote.chainId });
-      const walletClient = await getWalletClient(wagmiConfig, { chainId: quote.chainId });
-      if (!publicClient) throw new Error("BNB Chain RPC client is unavailable");
-      if (!walletClient.account) throw new Error("Connected wallet account is unavailable");
-
       const buyer = walletClient.account.address;
       const budget = BigInt(quote.priceBaseUnits);
       const balance = await publicClient.readContract({
@@ -153,7 +164,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       const createTx = await walletClient.writeContract({
         account: walletClient.account,
-        chain: walletClient.chain,
         address: deployment.commerce,
         abi: erc8183CommerceAbi,
         functionName: "createJob",
@@ -165,7 +175,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       const registerTx = await walletClient.writeContract({
         account: walletClient.account,
-        chain: walletClient.chain,
         address: deployment.router,
         abi: erc8183RouterAbi,
         functionName: "registerJob",
@@ -176,7 +185,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       const budgetTx = await walletClient.writeContract({
         account: walletClient.account,
-        chain: walletClient.chain,
         address: deployment.commerce,
         abi: erc8183CommerceAbi,
         functionName: "setBudget",
@@ -196,7 +204,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       if (allowance < budget) {
         approvalTx = await walletClient.writeContract({
           account: walletClient.account,
-          chain: walletClient.chain,
           address: deployment.paymentToken,
           abi: erc20PaymentAbi,
           functionName: "approve",
@@ -208,7 +215,6 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
       const fundTx = await walletClient.writeContract({
         account: walletClient.account,
-        chain: walletClient.chain,
         address: deployment.commerce,
         abi: erc8183CommerceAbi,
         functionName: "fund",
@@ -241,29 +247,25 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
 
   async function refreshJob(target = job) {
     if (!target) return;
+    if (!publicClient || target.chainId !== commerceChainId) {
+      setError("BNB Chain RPC client is not ready for this job network yet.");
+      return;
+    }
     setChecking(true);
     setError(null);
     try {
       const deployment = ERC8183_DEPLOYMENTS[target.chainId];
-      const publicClient = getPublicClient(wagmiConfig, { chainId: target.chainId });
-      if (!publicClient) throw new Error("BNB Chain RPC client is unavailable");
       const current = await publicClient.readContract({
         address: deployment.commerce,
         abi: erc8183CommerceAbi,
         functionName: "getJob",
         args: [BigInt(target.jobId)],
       });
-      const value = current as unknown as {
-        provider: string;
-        budget: bigint;
-        expiredAt: bigint;
-        status: number;
-      };
       setSnapshot({
-        provider: value.provider,
-        budget: value.budget.toString(),
-        expiredAt: new Date(Number(value.expiredAt) * 1000).toISOString(),
-        status: JOB_STATUS_LABELS[value.status] ?? `UNKNOWN(${value.status})`,
+        provider: current.provider,
+        budget: current.budget.toString(),
+        expiredAt: new Date(Number(current.expiredAt) * 1000).toISOString(),
+        status: JOB_STATUS_LABELS[current.status] ?? `UNKNOWN(${current.status})`,
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not read ERC-8183 job state");
@@ -282,7 +284,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     </div>
 
     {!quote && !job ? <>
-      <p>Ask the candidate's ERC-8004-advertised commerce service for fresh signed terms. AgentDesk will not turn the audition price into a paid job by assumption.</p>
+      <p>Ask the candidate&apos;s ERC-8004-advertised commerce service for fresh terms. AgentDesk will not turn the audition price into a paid job by assumption.</p>
       <button type="button" className="hire-action" onClick={negotiate} disabled={negotiating || result.status !== "completed"}>
         {negotiating ? <><Loader2 className="spin" size={15} /> Negotiating…</> : <><ShieldCheck size={15} /> Get current ERC-8183 terms</>}
       </button>
@@ -297,7 +299,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       <p className="hire-boundary">This is a current commerce quote. No payment has moved yet. Funding requires your wallet approval.</p>
       {!isConnected ? <p className="hire-warning"><WalletCards size={15} /> Connect your wallet in the wallet panel before funding.</p> : null}
       <button type="button" className="hire-action primary" onClick={createAndFundJob} disabled={funding || !isConnected}>
-        {funding ? <><Loader2 className="spin" size={15} /> Creating escrow job…</> : <>Create & fund ERC-8183 job</>}
+        {funding ? <><Loader2 className="spin" size={15} /> Preparing ERC-8183 job…</> : <>Create & fund ERC-8183 job</>}
       </button>
       <button type="button" className="hire-link-button" onClick={negotiate} disabled={negotiating || funding}>Refresh quote</button>
     </div> : null}
