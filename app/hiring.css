@@ -164,6 +164,70 @@
   line-height: 1.45;
 }
 
+.job-evidence-panel {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid #2b3944;
+}
+
+.job-evidence-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.job-evidence-heading > div > span { display: block; color: #768493; font-size: 7.5px; font-weight: 900; letter-spacing: .1em; }
+.job-evidence-heading > div > strong { display: block; margin-top: 3px; color: #dce4eb; font-size: 11px; }
+.job-evidence-heading .hire-link-button { margin: 0; }
+
+.provider-deliverable {
+  margin-top: 11px;
+  padding: 10px;
+  border: 1px solid #28624f;
+  border-radius: 9px;
+  background: rgba(34,126,95,.08);
+}
+.provider-deliverable-title { display: flex; align-items: center; gap: 6px; color: #9ce6ce; font-size: 9px; }
+.provider-deliverable pre {
+  max-height: 240px;
+  margin: 9px 0 0;
+  padding: 9px;
+  overflow: auto;
+  color: #d2dce4;
+  border: 1px solid #263944;
+  border-radius: 7px;
+  background: #071018;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.deliverable-proof {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  color: #789287;
+  font-size: 7.5px;
+}
+.deliverable-proof a,
+.reputation-proof-link { display: inline-flex; align-items: center; gap: 4px; color: #d5b85e; text-decoration: none; }
+
+.portable-reputation {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #4a4124;
+  border-radius: 9px;
+  background: rgba(184,143,38,.06);
+}
+.portable-reputation > div { display: flex; align-items: flex-start; gap: 7px; color: #e4c767; }
+.portable-reputation span { min-width: 0; }
+.portable-reputation strong { display: block; color: #ead680; font-size: 9px; }
+.portable-reputation small { display: block; margin-top: 3px; color: #9b9272; font-size: 8px; line-height: 1.45; }
+.reputation-proof-link { display: inline-flex; margin-top: 9px; font-size: 8.5px; }
+
 @media (max-width: 760px) {
   .comparison-controls { justify-content: flex-start; margin-top: 10px; }
   .hire-flow-heading { display: block; }
@@ -172,4 +236,7 @@
   .hire-proof-row b { max-width: 58%; white-space: normal; overflow-wrap: anywhere; }
   .hire-action { width: 100%; }
   .hire-link-button { width: 100%; margin-left: 0; }
+  .job-evidence-heading { align-items: stretch; flex-direction: column; }
+  .job-evidence-heading .hire-link-button { width: 100%; }
+  .deliverable-proof { align-items: flex-start; flex-direction: column; }
 }
