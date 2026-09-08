@@ -47,6 +47,52 @@
   text-align: center;
 }
 
+.audition-race {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #3a4650;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(10,20,29,.98), rgba(6,13,20,.98));
+}
+.race-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.race-heading span { color: #eebc45; font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.race-heading strong { color: #9aa7b4; font-size: 9px; }
+.race-lanes { display: grid; gap: 7px; }
+.race-lane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid #2e3d49;
+  border-radius: 9px;
+  background: rgba(255,255,255,.016);
+}
+.race-lane > div:first-child { min-width: 0; }
+.race-lane > div:first-child span { display: block; color: #d9e0e7; font-size: 10px; font-weight: 800; }
+.race-lane > div:first-child small { display: block; margin-top: 2px; color: #687887; font-size: 7.5px; }
+.race-state { display: flex; align-items: center; justify-content: flex-end; gap: 7px; min-width: 128px; }
+.race-state b { color: #a9b4bf; font-size: 8px; text-transform: uppercase; }
+.race-state time { min-width: 68px; color: #71808e; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 7.5px; text-align: right; }
+.race-lane > p { grid-column: 1 / -1; margin: 0; color: #c68d91; font-size: 8px; line-height: 1.4; }
+.race-running { border-color: #594b23; box-shadow: inset 2px 0 #d6a72e; }
+.race-completed { border-color: #285746; box-shadow: inset 2px 0 #47bd91; }
+.race-completed .race-state b { color: #7dd8b5; }
+.race-unsupported,
+.race-timeout,
+.race-error,
+.race-request-error { border-color: #583238; box-shadow: inset 2px 0 #a5535f; }
+.race-unsupported .race-state b,
+.race-timeout .race-state b,
+.race-error .race-state b,
+.race-request-error .race-state b { color: #dd8d98; }
+
 .hire-flow {
   margin-top: 14px;
   padding: 13px;
@@ -230,6 +276,9 @@
 
 @media (max-width: 760px) {
   .comparison-controls { justify-content: flex-start; margin-top: 10px; }
+  .race-lane { grid-template-columns: 1fr; }
+  .race-state { justify-content: flex-start; min-width: 0; }
+  .race-state time { min-width: 0; text-align: left; }
   .hire-flow-heading { display: block; }
   .receipt-chip { display: inline-block; margin-top: 8px; }
   .hire-proof-row { align-items: flex-start; }
