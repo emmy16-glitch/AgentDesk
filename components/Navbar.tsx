@@ -6,7 +6,7 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-4">
         {/* Logo */}
         <a href="#" className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold/20 to-gold/5 border border-gold/20 shadow-[0_0_15px_rgba(240,185,11,0.1)]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold/20 to-gold/5 border border-gold/20 shadow-[0_0_15px_rgba(242,189,62,0.1)]">
             <Hexagon className="h-5 w-5 text-gold" strokeWidth={2} />
           </div>
           <span className="text-xl font-bold tracking-tight text-white">

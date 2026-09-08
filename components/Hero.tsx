@@ -13,7 +13,7 @@ export default function Hero() {
             {/* Label */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-surface px-4 py-1.5 mb-6 shadow-sm">
               <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gold/15 border border-gold/20">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f0b90b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f2bd3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 </svg>
               </div>
@@ -38,7 +38,7 @@ export default function Hero() {
             <div className="flex items-center gap-3 mb-10">
               <a
                 href="#"
-                className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_30px_rgba(240,185,11,0.3)]"
+                className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_30px_rgba(242,189,62,0.3)]"
               >
                 Explore Agents
                 <ArrowRight className="h-4 w-4" />
@@ -84,7 +84,7 @@ export default function Hero() {
             <div className="relative z-10">
               <div className="relative w-56 h-56">
                 {/* Main gold cube */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#c4930a] via-[#f0b90b] to-[#8a6208] shadow-[0_0_60px_rgba(240,185,11,0.25)] rotate-[8deg] scale-[0.85] opacity-90">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#c4930a] via-[#f2bd3e] to-[#c4930a] shadow-[0_0_60px_rgba(242,189,62,0.25)] rotate-[8deg] scale-[0.85] opacity-90">
                   <div className="absolute inset-2 rounded-xl bg-gradient-to-tr from-[#111327] to-[#0a0b14] flex items-center justify-center border border-white/[0.08]">
                     <div className="text-center">
                       <CubeIconLarge />

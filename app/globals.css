@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #07080f;
-  --color-surface: #0d0f16;
+  --color-background: #03080d;
+  --color-surface: #0b121a;
   --color-surface-2: #13162a;
-  --color-card: #111327;
-  --color-card-hover: #161a3a;
-  --color-gold: #f0b90b;
-  --color-gold-dark: #c4930a;
+  --color-card: #13162a;
+  --color-card-hover: #1a1d2e;
+  --color-gold: #f2bd3e;
+  --color-gold-dark: #c4950e;
   --color-gold-glow: rgba(240, 185, 11, 0.15);
   --color-text: #ffffff;
   --color-text-secondary: #8a8f9e;
@@ -32,7 +32,7 @@
 
 @layer utilities {
   .text-gradient-gold {
-    background: linear-gradient(135deg, #f5d76e 0%, #f0b90b 100%);
+    background: linear-gradient(135deg, #f5d76e 0%, #f2bd3e 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

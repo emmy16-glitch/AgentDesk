@@ -43,8 +43,8 @@ export default function AIAssistant() {
         </div>
 
         {/* Recommendation */}
-        <div className="rounded-xl bg-gold/[0.06] border border-gold/10 p-3 mb-4">
-          <div className="text-xs font-bold text-gold mb-1">Recommendation: Safe to Hire</div>
+        <div className="rounded-xl bg-success/[0.06] border border-success/10 p-3 mb-4">
+          <div className="text-xs font-bold text-success mb-1">Recommendation: Safe to Hire</div>
           <p className="text-[11px] text-text-secondary leading-relaxed">
             This agent has a strong track record and transparent permissions. Verified by on-chain data and active users.
           </p>
@@ -57,7 +57,7 @@ export default function AIAssistant() {
             placeholder="Ask a question..."
             className="w-full rounded-xl border border-white/[0.08] bg-card/80 px-4 py-3 pr-10 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-gold/30 focus:ring-1 focus:ring-gold/10 transition-all"
           />
-          <button className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-gold flex items-center justify-center hover:bg-gold-dark transition-colors shadow-[0_2px_10px_rgba(240,185,11,0.3)]">
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg bg-gold flex items-center justify-center hover:bg-gold-dark transition-colors shadow-[0_2px_10px_rgba(242,189,62,0.3)]">
             <Send className="h-3.5 w-3.5 text-black" />
           </button>
         </div>

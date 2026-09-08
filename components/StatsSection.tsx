@@ -32,7 +32,7 @@ export default function StatsSection() {
             <h3 className="text-base font-extrabold text-white">Join the BNB Agent Studio Ecosystem</h3>
             <p className="text-xs text-text-muted">Build, deploy, and monetize verified AI agents.</p>
           </div>
-          <a href="#" className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-extrabold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_20px_rgba(240,185,11,0.25)] whitespace-nowrap">
+          <a href="#" className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-extrabold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_20px_rgba(242,189,62,0.25)] whitespace-nowrap">
             Build the Future →
           </a>
         </div>

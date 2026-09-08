@@ -28,7 +28,7 @@ export default function SearchBar({ activeCategory, setActiveCategory }: { activ
             onClick={() => setActiveCategory(cat)}
             className={`rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
               activeCategory === cat
-                ? "bg-gold text-black shadow-[0_4px_20px_rgba(240,185,11,0.25)]"
+                ? "bg-gold text-black shadow-[0_4px_20px_rgba(242,189,62,0.25)]"
                 : "bg-card/60 text-text-secondary border border-white/[0.06] hover:text-white hover:border-white/[0.12]"
             }`}
           >

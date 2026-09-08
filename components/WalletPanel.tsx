@@ -27,7 +27,7 @@ export default function WalletPanel() {
 
         <a
           href="#"
-          className="block w-full rounded-xl bg-gold text-center px-4 py-3 text-sm font-extrabold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_20px_rgba(240,185,11,0.2)] mb-3"
+          className="block w-full rounded-xl bg-gold text-center px-4 py-3 text-sm font-extrabold text-black hover:bg-gold-dark transition-colors shadow-[0_4px_20px_rgba(242,189,62,0.2)] mb-3"
         >
           Disconnect Wallet
         </a>
