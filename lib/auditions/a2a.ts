@@ -29,12 +29,27 @@ interface A2AExecution {
   error?: string;
 }
 
+interface ResolvedAgentCard {
+  card: AgentCard;
+  sourceUrl: string;
+}
+
 function timeoutError(error: unknown): boolean {
   return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
 
 function hasRequiredSecurity(card: AgentCard): boolean {
   return Array.isArray(card.security) && card.security.length > 0;
+}
+
+function isAgentCard(value: unknown): value is AgentCard {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const card = value as Record<string, unknown>;
+  const hasName = typeof card.name === "string" && card.name.trim().length > 0;
+  const hasUrl = typeof card.url === "string" && card.url.trim().length > 0;
+  const hasProtocolVersion = typeof card.protocolVersion === "string" && card.protocolVersion.trim().length > 0;
+  const hasSkills = Array.isArray(card.skills);
+  return hasName && hasUrl && (hasProtocolVersion || hasSkills);
 }
 
 function textFromParts(parts: unknown): string[] {
@@ -125,64 +140,93 @@ async function readJsonLimited(response: Response, maxBytes: number): Promise<un
   return JSON.parse(text) as unknown;
 }
 
+function agentCardCandidates(advertisedEndpoint: URL): URL[] {
+  const candidates: URL[] = [advertisedEndpoint];
+  const path = advertisedEndpoint.pathname.toLowerCase();
+  const alreadyLooksLikeCard = path.includes("agent-card") || /\/card\/?$/.test(path);
+
+  if (!alreadyLooksLikeCard) {
+    candidates.push(new URL("/.well-known/agent-card.json", advertisedEndpoint.origin));
+  }
+
+  const unique = new Map(candidates.map((candidate) => [candidate.toString(), candidate]));
+  return [...unique.values()];
+}
+
+async function resolveAgentCard(serviceEndpoint: string): Promise<ResolvedAgentCard> {
+  const endpointValidation = await validatePublicHttpsUrl(serviceEndpoint);
+  if (!endpointValidation.ok) {
+    throw new Error(`Advertised A2A endpoint cannot be used safely: ${endpointValidation.reason}`);
+  }
+
+  let lastReason = "No Agent Card candidate responded";
+  for (const candidate of agentCardCandidates(endpointValidation.url)) {
+    const validation = await validatePublicHttpsUrl(candidate.toString());
+    if (!validation.ok) {
+      lastReason = validation.reason;
+      continue;
+    }
+
+    try {
+      const response = await fetch(validation.url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "AgentDesk-Audition/1.0",
+        },
+        redirect: "manual",
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+      });
+
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        lastReason = `HTTP ${response.status} from ${validation.url.pathname}`;
+        continue;
+      }
+
+      const payload = await readJsonLimited(response, MAX_CARD_BYTES);
+      if (!isAgentCard(payload)) {
+        lastReason = `Response at ${validation.url.pathname} was not an A2A Agent Card`;
+        continue;
+      }
+
+      return { card: payload, sourceUrl: validation.url.toString() };
+    } catch (error) {
+      if (timeoutError(error)) lastReason = `Timed out resolving ${validation.url.pathname}`;
+      else lastReason = `Could not resolve ${validation.url.pathname}`;
+    }
+  }
+
+  throw new Error(`A2A Agent Card could not be resolved from the advertised A2A service or protocol-standard well-known path: ${lastReason}`);
+}
+
 export async function auditionA2AService(service: AgentService, task: AuditionTask): Promise<A2AExecution> {
   const checkedAt = new Date().toISOString();
   const evidence: AuditionEvidence[] = [];
 
-  const cardValidation = await validatePublicHttpsUrl(service.endpoint);
-  if (!cardValidation.ok) {
-    return {
-      status: "unsupported",
-      latencyMs: null,
-      checkedAt,
-      output: null,
-      quote: null,
-      evidence,
-      error: `Advertised A2A card URL cannot be used safely: ${cardValidation.reason}`,
-    };
-  }
-
-  let card: AgentCard;
+  let resolvedCard: ResolvedAgentCard;
   try {
-    const cardResponse = await fetch(cardValidation.url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "AgentDesk-Audition/1.0",
-      },
-      redirect: "manual",
-      cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!cardResponse.ok) {
-      return {
-        status: "error",
-        latencyMs: null,
-        checkedAt,
-        output: null,
-        quote: null,
-        evidence,
-        error: `A2A Agent Card returned HTTP ${cardResponse.status}`,
-      };
-    }
-    card = await readJsonLimited(cardResponse, MAX_CARD_BYTES) as AgentCard;
+    resolvedCard = await resolveAgentCard(service.endpoint);
   } catch (error) {
+    const message = error instanceof Error ? error.message : "A2A Agent Card could not be resolved";
     return {
-      status: timeoutError(error) ? "timeout" : "error",
+      status: /timed out/i.test(message) ? "timeout" : "unsupported",
       latencyMs: null,
       checkedAt,
       output: null,
       quote: null,
       evidence,
-      error: timeoutError(error) ? "A2A Agent Card lookup timed out" : "A2A Agent Card could not be resolved",
+      error: message,
     };
   }
 
+  const { card } = resolvedCard;
   evidence.push({
     kind: "agent-card",
-    source: cardValidation.url.toString(),
+    source: resolvedCard.sourceUrl,
     observedAt: new Date().toISOString(),
-    summary: `Resolved A2A Agent Card${card.protocolVersion ? ` using protocol ${card.protocolVersion}` : ""}.`,
+    summary: `Resolved A2A Agent Card${card.protocolVersion ? ` using protocol ${card.protocolVersion}` : ""} from the explicitly advertised A2A service.`,
     raw: card,
   });
 
