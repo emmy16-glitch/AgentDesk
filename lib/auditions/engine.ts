@@ -39,6 +39,11 @@ function explainTaskFit(result: {
   return { label: "NOT ENOUGH EVIDENCE", reasons, missingEvidence };
 }
 
+function isA2AServiceName(name: string): boolean {
+  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return normalized === "a2a" || normalized.startsWith("a2a");
+}
+
 export async function runAudition(request: AuditionRequest): Promise<AuditionResult> {
   const identity = await resolveOnChainAgentIdentity(request.tokenId);
   const identityEvidence: AuditionEvidence = {
@@ -56,7 +61,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     },
   };
 
-  const a2aService = identity.services.find((service) => service.name.trim().toLowerCase() === "a2a");
+  const a2aService = identity.services.find((service) => isA2AServiceName(service.name));
   if (!a2aService) {
     const taskFit = explainTaskFit({
       status: "unsupported",
