@@ -1,6 +1,8 @@
 import { createPublicClient, defineChain, http } from "viem";
+import { validatePublicHttpsUrl } from "@/lib/network-safety";
 
 export const BSC_MAINNET_IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as const;
+const MAX_METADATA_BYTES = 256 * 1024;
 
 const bscMainnet = defineChain({
   id: 56,
@@ -50,8 +52,12 @@ export interface AgentRegistrationMetadata {
   description?: string;
   image?: string;
   services?: AgentService[];
+  /** Legacy ERC-8004 metadata field. `services` takes precedence when present. */
+  endpoints?: AgentService[];
   registrations?: Array<{ agentId?: number; agentRegistry?: string }>;
   supportedTrust?: string[];
+  x402Support?: boolean;
+  active?: boolean;
   [key: string]: unknown;
 }
 
@@ -63,7 +69,7 @@ export interface OnChainAgentIdentity {
   agentWallet: string | null;
   agentUri: string;
   metadata: AgentRegistrationMetadata | null;
-  metadataStatus: "resolved" | "unresolved" | "unsupported-uri" | "invalid-json";
+  metadataStatus: "resolved" | "unresolved" | "unsupported-uri" | "invalid-json" | "blocked-uri" | "too-large";
   services: AgentService[];
   checkedAt: string;
   explorerUrl: string;
@@ -77,15 +83,21 @@ function publicClient() {
 }
 
 function parseDataJson(uri: string): AgentRegistrationMetadata | null {
+  if (Buffer.byteLength(uri, "utf8") > MAX_METADATA_BYTES * 2) return null;
+
   try {
     if (uri.startsWith("data:application/json;base64,")) {
       const encoded = uri.slice("data:application/json;base64,".length);
-      return JSON.parse(Buffer.from(encoded, "base64").toString("utf8")) as AgentRegistrationMetadata;
+      const decoded = Buffer.from(encoded, "base64");
+      if (decoded.byteLength > MAX_METADATA_BYTES) return null;
+      return JSON.parse(decoded.toString("utf8")) as AgentRegistrationMetadata;
     }
 
     if (uri.startsWith("data:application/json,")) {
       const encoded = uri.slice("data:application/json,".length);
-      return JSON.parse(decodeURIComponent(encoded)) as AgentRegistrationMetadata;
+      const decoded = decodeURIComponent(encoded);
+      if (Buffer.byteLength(decoded, "utf8") > MAX_METADATA_BYTES) return null;
+      return JSON.parse(decoded) as AgentRegistrationMetadata;
     }
   } catch {
     return null;
@@ -94,19 +106,34 @@ function parseDataJson(uri: string): AgentRegistrationMetadata | null {
 }
 
 function metadataHttpUrl(uri: string): string | null {
-  if (uri.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${uri.slice("ipfs://".length)}`;
+  if (uri.startsWith("ipfs://")) {
+    const cidPath = uri.slice("ipfs://".length).replace(/^ipfs\//, "");
+    return cidPath ? `https://ipfs.io/ipfs/${cidPath}` : null;
+  }
   if (uri.startsWith("https://")) return uri;
   return null;
 }
 
 function normalizeServices(metadata: AgentRegistrationMetadata | null): AgentService[] {
-  if (!metadata || !Array.isArray(metadata.services)) return [];
-  return metadata.services.flatMap((service) => {
+  if (!metadata) return [];
+  const entries = Array.isArray(metadata.services)
+    ? metadata.services
+    : Array.isArray(metadata.endpoints)
+      ? metadata.endpoints
+      : [];
+
+  const seen = new Set<string>();
+  return entries.flatMap((service) => {
     if (!service || typeof service !== "object") return [];
     const name = typeof service.name === "string" ? service.name.trim() : "";
     const endpoint = typeof service.endpoint === "string" ? service.endpoint.trim() : "";
     const version = typeof service.version === "string" ? service.version.trim() : undefined;
-    return name && endpoint ? [{ name, endpoint, ...(version ? { version } : {}) }] : [];
+    if (!name || !endpoint) return [];
+
+    const key = `${name.toLowerCase()}:${endpoint}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ name, endpoint, ...(version ? { version } : {}) }];
   });
 }
 
@@ -117,22 +144,47 @@ async function resolveMetadata(agentUri: string): Promise<{
   if (!agentUri) return { metadata: null, status: "unresolved" };
 
   if (agentUri.startsWith("data:application/json")) {
+    if (Buffer.byteLength(agentUri, "utf8") > MAX_METADATA_BYTES * 2) {
+      return { metadata: null, status: "too-large" };
+    }
     const metadata = parseDataJson(agentUri);
     return { metadata, status: metadata ? "resolved" : "invalid-json" };
   }
 
-  const url = metadataHttpUrl(agentUri);
-  if (!url) return { metadata: null, status: "unsupported-uri" };
+  const candidateUrl = metadataHttpUrl(agentUri);
+  if (!candidateUrl) return { metadata: null, status: "unsupported-uri" };
+
+  const validation = await validatePublicHttpsUrl(candidateUrl);
+  if (!validation.ok) return { metadata: null, status: "blocked-uri" };
 
   try {
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
+    const response = await fetch(validation.url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "AgentDesk-ERC8004-Metadata/1.0",
+      },
+      redirect: "manual",
+      cache: "no-store",
       signal: AbortSignal.timeout(5_000),
-      next: { revalidate: 300 },
     });
     if (!response.ok) return { metadata: null, status: "unresolved" };
-    const metadata = (await response.json()) as AgentRegistrationMetadata;
-    return { metadata, status: "resolved" };
+
+    const declaredLength = Number(response.headers.get("content-length") || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_METADATA_BYTES) {
+      await response.body?.cancel().catch(() => undefined);
+      return { metadata: null, status: "too-large" };
+    }
+
+    const text = await response.text();
+    if (Buffer.byteLength(text, "utf8") > MAX_METADATA_BYTES) {
+      return { metadata: null, status: "too-large" };
+    }
+
+    try {
+      return { metadata: JSON.parse(text) as AgentRegistrationMetadata, status: "resolved" };
+    } catch {
+      return { metadata: null, status: "invalid-json" };
+    }
   } catch {
     return { metadata: null, status: "unresolved" };
   }
