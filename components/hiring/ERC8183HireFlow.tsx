@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ExternalLink, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
 import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
-import { encodeFunctionData, formatUnits, isAddress, type Address, type Hex } from "viem";
+import { encodeFunctionData, formatUnits, getAddress, isAddress, type Address, type Hex } from "viem";
 import JobEvidencePanel from "@/components/hiring/JobEvidencePanel";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
@@ -17,6 +17,7 @@ import {
   erc8183RouterAbi,
   type SupportedCommerceChainId,
 } from "@/lib/erc8183";
+import { buildCanonicalJobDescription, signedTaskContainsReceipt } from "@/lib/hiring/erc8183-negotiation";
 import type { Erc8183JobEvidence, Erc8183NegotiatedQuote } from "@/lib/hiring/types";
 
 interface Props {
@@ -34,20 +35,6 @@ interface NegotiateResponse {
 function short(value: string, left = 8, right = 6) {
   if (value.length <= left + right + 3) return value;
   return `${value.slice(0, left)}…${value.slice(-right)}`;
-}
-
-function makeJobDescription(result: ComparedAudition, quote: Erc8183NegotiatedQuote) {
-  const receipt = buildAuditionReceipt(result);
-  return JSON.stringify({
-    v: "agentdesk-hire-v1",
-    erc8004TokenId: result.candidate.tokenId,
-    category: result.task.category,
-    auditionReceipt: receipt.receiptHash,
-    taskHash: receipt.taskHash,
-    quoteCheckedAt: quote.checkedAt,
-    quoteExpiresAt: quote.quoteExpiresAt,
-    task: quote.taskDescription,
-  });
 }
 
 function jobIdFromReceipt(receipt: { logs: Array<{ address: string; topics: readonly Hex[] }> }, commerce: Address): bigint {
@@ -87,10 +74,20 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const response = await fetch("/api/hiring/negotiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenId: result.candidate.tokenId, task: result.task }),
+        body: JSON.stringify({
+          tokenId: result.candidate.tokenId,
+          task: result.task,
+          auditionReceiptHash: receipt.receiptHash,
+        }),
       });
       const body = await response.json() as NegotiateResponse;
       if (!response.ok || !body.ok || !body.quote) throw new Error(body.error || "ERC-8183 negotiation failed");
+      if (body.quote.auditionReceiptHash.toLowerCase() !== receipt.receiptHash.toLowerCase()) {
+        throw new Error("Returned ERC-8183 quote is not bound to this audition receipt");
+      }
+      if (!signedTaskContainsReceipt(body.quote.envelope, receipt.receiptHash)) {
+        throw new Error("Provider-signed task does not contain this audition receipt");
+      }
       setQuote(body.quote);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ERC-8183 negotiation failed");
@@ -152,8 +149,26 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const deployment = ERC8183_DEPLOYMENTS[quote.chainId];
       const buyer = walletClient.account.address;
       const budget = BigInt(quote.priceBaseUnits);
+
+      const livePaymentToken = await publicClient.readContract({
+        address: deployment.commerce,
+        abi: erc8183CommerceAbi,
+        functionName: "paymentToken",
+      });
+      if (
+        getAddress(livePaymentToken) !== getAddress(deployment.paymentToken)
+        || getAddress(livePaymentToken) !== getAddress(quote.paymentToken)
+      ) {
+        throw new Error("Live Commerce payment token changed after negotiation. Funding was blocked safely; refresh the quote.");
+      }
+
+      const description = buildCanonicalJobDescription(quote.envelope);
+      if (!description.toLowerCase().includes(receipt.receiptHash.toLowerCase())) {
+        throw new Error("Canonical provider-signed job description is not linked to this audition receipt");
+      }
+
       const balance = await publicClient.readContract({
-        address: deployment.paymentToken,
+        address: livePaymentToken,
         abi: erc20PaymentAbi,
         functionName: "balanceOf",
         args: [buyer],
@@ -162,8 +177,8 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         throw new Error(`Wallet does not have enough $U for this ${formatUnits(budget, 18)} $U job.`);
       }
 
-      const description = makeJobDescription(result, quote);
-      const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 8 * 24 * 60 * 60);
+      // Leave a long enough execution/evaluation window for real external providers.
+      const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60);
       const createData = encodeFunctionData({
         abi: erc8183CommerceAbi,
         functionName: "createJob",
@@ -193,7 +208,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       if (budgetReceipt.status !== "success") throw new Error("ERC-8183 setBudget transaction reverted");
 
       const allowance = await publicClient.readContract({
-        address: deployment.paymentToken,
+        address: livePaymentToken,
         abi: erc20PaymentAbi,
         functionName: "allowance",
         args: [buyer, deployment.commerce],
@@ -206,7 +221,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
           functionName: "approve",
           args: [deployment.commerce, budget],
         });
-        approvalTx = await sendTransaction(deployment.paymentToken, approvalData);
+        approvalTx = await sendTransaction(livePaymentToken, approvalData);
         const approvalReceipt = await publicClient.waitForTransactionReceipt({ hash: approvalTx });
         if (approvalReceipt.status !== "success") throw new Error("$U approval transaction reverted");
       }
@@ -250,28 +265,30 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     </div>
 
     {!quote && !job ? <>
-      <p>Ask the candidate&apos;s ERC-8004-advertised commerce service for fresh terms. AgentDesk will not turn the audition price into a paid job by assumption.</p>
+      <p>Ask the candidate&apos;s ERC-8004-advertised commerce/A2A service for fresh provider-signed terms. The audition receipt is inserted before signing so the paid job can be linked back to this exact audition.</p>
       <button type="button" className="hire-action" onClick={negotiate} disabled={negotiating || result.status !== "completed"}>
-        {negotiating ? <><Loader2 className="spin" size={15} /> Negotiating…</> : <><ShieldCheck size={15} /> Get current ERC-8183 terms</>}
+        {negotiating ? <><Loader2 className="spin" size={15} /> Negotiating & verifying…</> : <><ShieldCheck size={15} /> Get verified ERC-8183 terms</>}
       </button>
     </> : null}
 
     {quote && !job ? <div className="hire-terms">
       <div className="hire-proof-row"><span>Network</span><b>{ERC8183_DEPLOYMENTS[quote.chainId].name}</b></div>
       <div className="hire-proof-row"><span>Current quote</span><b>{quotedDisplay}</b></div>
+      <div className="hire-proof-row"><span>Payment token</span><b title={quote.paymentToken}>{short(quote.paymentToken)}</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={quote.provider}>{short(quote.provider)}</b></div>
-      <div className="hire-proof-row"><span>Provider signature</span><b>{quote.providerSignature ? short(quote.providerSignature) : "not returned"}</b></div>
+      <div className="hire-proof-row"><span>Provider signature</span><b>{quote.signatureMethod} · block {quote.signatureCheckedAtBlock}</b></div>
+      <div className="hire-proof-row"><span>Negotiation hash</span><b title={quote.negotiationHash}>{short(quote.negotiationHash)}</b></div>
       <div className="hire-proof-row"><span>Expires</span><b>{quote.quoteExpiresAt ? new Date(quote.quoteExpiresAt).toLocaleTimeString() : "not stated"}</b></div>
-      <p className="hire-boundary">This is a current commerce quote. No payment has moved yet. Funding requires your wallet approval.</p>
+      <p className="hire-boundary">Provider signature, BNB chain, Commerce contract, live payment token and audition receipt have been checked. No payment has moved yet.</p>
       {!isConnected ? <p className="hire-warning"><WalletCards size={15} /> Connect your wallet in the wallet panel before funding.</p> : null}
       <button type="button" className="hire-action primary" onClick={createAndFundJob} disabled={funding || !isConnected}>
-        {funding ? <><Loader2 className="spin" size={15} /> Preparing ERC-8183 job…</> : <>Create & fund ERC-8183 job</>}
+        {funding ? <><Loader2 className="spin" size={15} /> Preparing ERC-8183 job…</> : <>Create & fund signed ERC-8183 job</>}
       </button>
-      <button type="button" className="hire-link-button" onClick={negotiate} disabled={negotiating || funding}>Refresh quote</button>
+      <button type="button" className="hire-link-button" onClick={negotiate} disabled={negotiating || funding}>Refresh signed quote</button>
     </div> : null}
 
     {job && quote ? <div className="hire-job">
-      <div className="hire-job-banner"><ShieldCheck size={17} /><div><strong>Escrow funded</strong><span>ERC-8183 job #{job.jobId} now has an independently inspectable on-chain reference.</span></div></div>
+      <div className="hire-job-banner"><ShieldCheck size={17} /><div><strong>Escrow funded</strong><span>ERC-8183 job #{job.jobId} contains the exact provider-signed terms and audition receipt commitment.</span></div></div>
       <div className="hire-proof-row"><span>Audition receipt</span><b title={job.receiptHash}>{short(job.receiptHash)}</b></div>
       <div className="hire-proof-row"><span>Budget</span><b>{formatUnits(BigInt(job.priceBaseUnits), 18)} $U</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={job.provider}>{short(job.provider)}</b></div>
