@@ -1,0 +1,65 @@
+/*
+ * Reusable layout fixes extracted from Arena PR #2 and adapted to the current
+ * source-backed AgentDesk UI. These rules intentionally avoid pixel-matching the
+ * retired static four-agent catalogue.
+ */
+
+/* Real registry names/descriptions are variable-length. Never require a seed-data
+   card height or a one-line title to keep the grid aligned. */
+.agent-card {
+  height: auto;
+  min-height: 492px;
+}
+
+.agent-card header {
+  gap: 8px;
+  min-width: 0;
+}
+
+.agent-card header > div:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-card h2 {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.agent-card header p {
+  white-space: normal;
+}
+
+/* Arena's measured shell correction is still useful, but keep it centered rather
+   than preserving the old screenshot's one-sided calibration. */
+@media (min-width: 1051px) {
+  .market-shell,
+  .stats-footer {
+    width: min(1242px, calc(100% - 48px));
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  /* The old responsive layout allowed the category row to become wider than the
+     viewport with no usable scroll path. */
+  .category-scroll {
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .category-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Preserve all four visual capability chips without horizontal clipping. */
+  .hero-visual {
+    overflow: visible;
+    transform: scale(.78);
+    transform-origin: left top;
+  }
+}
