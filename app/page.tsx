@@ -8,6 +8,7 @@ import RegistryAgentCard from "@/components/RegistryAgentCard";
 import WalletPanel from "@/components/WalletPanel";
 import AIAssistant from "@/components/AIAssistant";
 import StatsSection from "@/components/StatsSection";
+import TaskFirstAudition from "@/components/auditions/TaskFirstAudition";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
 
 interface DiscoveryResponse {
@@ -64,27 +65,39 @@ export default function HomePage() {
     <div className="market-shell">
       <div className="market-main">
         <Hero />
-        <SearchBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} query={query} setQuery={setQuery} />
 
-        <div role="status" aria-live="polite" style={{ margin: "0 0 16px", color: "#8a8f9e", fontSize: 13 }}>
-          {loading && "Discovering registered ERC-8004 agents on BNB Smart Chain…"}
-          {!loading && !error && `Sourced from ERC-8004 / 8004scan${checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString()}` : ""}. Registry presence does not yet imply endpoint reachability.`}
-        </div>
+        <TaskFirstAudition agents={agents} discoveryLoading={loading} discoveryError={error} />
 
-        {error ? <section className="agent-card" role="alert">
-          <h2>Live discovery unavailable</h2>
-          <p className="agent-description">{error}</p>
-          <p className="agent-description">AgentDesk will not silently replace failed registry discovery with fabricated agent statistics.</p>
-        </section> : null}
+        <section className="registry-browser" aria-labelledby="registry-browser-heading">
+          <div className="registry-browser-heading">
+            <div>
+              <span>ERC-8004 SOURCE RECORDS</span>
+              <h2 id="registry-browser-heading">Inspect the candidates behind the auditions</h2>
+            </div>
+            <p>Discovery proves identity/category evidence only. Service reachability and task quality are checked separately during an audition.</p>
+          </div>
+          <SearchBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} query={query} setQuery={setQuery} />
 
-        {!loading && !error && filteredAgents.length === 0 ? <section className="agent-card">
-          <h2>No source-qualified candidates yet</h2>
-          <p className="agent-description">No currently indexed BSC agent passed the evidence filter for this category/search. We show an empty result rather than inventing one.</p>
-        </section> : null}
+          <div role="status" aria-live="polite" className="registry-status">
+            {loading && "Discovering registered ERC-8004 agents on BNB Smart Chain…"}
+            {!loading && !error && `Sourced from ERC-8004 / 8004scan${checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString()}` : ""}. Registry presence does not imply endpoint reachability.`}
+          </div>
 
-        <main className="agent-grid" id="agents" aria-label="ERC-8004 agent discovery results">
-          {filteredAgents.map((agent) => <RegistryAgentCard key={`${agent.chainId}:${agent.tokenId}`} agent={agent} />)}
-        </main>
+          {error ? <section className="agent-card" role="alert">
+            <h2>Live discovery unavailable</h2>
+            <p className="agent-description">{error}</p>
+            <p className="agent-description">AgentDesk will not silently replace failed registry discovery with fabricated agent statistics.</p>
+          </section> : null}
+
+          {!loading && !error && filteredAgents.length === 0 ? <section className="agent-card">
+            <h2>No source-qualified candidates yet</h2>
+            <p className="agent-description">No currently indexed BSC agent passed the evidence filter for this category/search. We show an empty result rather than inventing one.</p>
+          </section> : null}
+
+          <main className="agent-grid" id="agents" aria-label="ERC-8004 agent discovery results">
+            {filteredAgents.map((agent) => <RegistryAgentCard key={`${agent.chainId}:${agent.tokenId}`} agent={agent} />)}
+          </main>
+        </section>
       </div>
       <aside className="market-sidebar" aria-label="Wallet and assistant tools">
         <WalletPanel />
