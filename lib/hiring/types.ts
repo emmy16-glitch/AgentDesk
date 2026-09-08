@@ -1,22 +1,30 @@
 import type { AuditionTask } from "@/lib/auditions/types";
 import type { SupportedCommerceChainId } from "@/lib/erc8183";
+import type { CanonicalNegotiationEnvelope } from "@/lib/hiring/erc8183-negotiation";
+import type { QuoteSignatureMethod } from "@/lib/hiring/verify-erc8183-quote";
 
 export interface Erc8183NegotiatedQuote {
-  accepted: boolean;
+  accepted: true;
   tokenId: number;
   provider: string;
-  providerSource: "erc8004-agent-wallet" | "negotiation-response";
+  providerSource: "erc8004-agent-wallet";
   priceBaseUnits: string;
-  currency: string;
+  currency: "$U";
+  paymentToken: string;
   chainId: SupportedCommerceChainId;
   quoteExpiresAt: string | null;
-  providerSignature: string | null;
-  verifyingContract: string | null;
+  providerSignature: string;
+  negotiationHash: string;
+  signatureMethod: QuoteSignatureMethod;
+  signatureCheckedAtBlock: string;
+  verifyingContract: string;
   serviceEndpoint: string;
   negotiationEndpoint: string;
   taskDescription: string;
+  auditionReceiptHash: string;
   task: AuditionTask;
   checkedAt: string;
+  envelope: CanonicalNegotiationEnvelope;
   raw: unknown;
 }
 
