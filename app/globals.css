@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #03080d;
+  --color-surface: #0b121a;
+  --color-surface-2: #13162a;
+  --color-card: #13162a;
+  --color-card-hover: #1a1d2e;
+  --color-gold: #f2bd3e;
+  --color-gold-dark: #c4950e;
+  --color-gold-glow: rgba(240, 185, 11, 0.15);
+  --color-text: #ffffff;
+  --color-text-secondary: #8a8f9e;
+  --color-text-muted: #5a6078;
+  --color-success: #10b981;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #f5d76e 0%, #f2bd3e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gold-glow {
+    box-shadow: 0 0 30px rgba(240, 185, 11, 0.12), 0 0 80px rgba(240, 185, 11, 0.06);
+  }
+}

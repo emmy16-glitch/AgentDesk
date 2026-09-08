@@ -1,0 +1,8 @@
+/node_modules
+/.next
+/out
+/backup
+/dist
+/build
+*.log
+/npm-debug.log*
