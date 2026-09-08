@@ -186,7 +186,8 @@ test("all task families remain reachable and candidate selection is evidence-bac
   await mockDiscovery(page);
   await page.goto("/", { waitUntil: "networkidle" });
 
-  const taskTabs = page.getByLabel("Task family");
+  const workbench = page.locator("#audition");
+  const taskTabs = workbench.getByLabel("Task family");
   for (const label of [
     "Health Factor Monitoring",
     "Yield Optimisation",
@@ -197,11 +198,11 @@ test("all task families remain reachable and candidate selection is evidence-bac
   }
 
   await taskTabs.getByRole("button", { name: "Rebalancing", exact: true }).click();
-  await expect(page.getByText("Mock DeFi Matrix").first()).toBeVisible();
-  await expect(page.getByText("Mock Venus Monitor")).toHaveCount(0);
+  await expect(workbench.getByText("Mock DeFi Matrix").first()).toBeVisible();
+  await expect(workbench.getByText("Mock Venus Monitor")).toHaveCount(0);
 
   await taskTabs.getByRole("button", { name: "Grid Trading", exact: true }).click();
-  await expect(page.getByText(/No source-qualified candidates currently match this task family/i)).toBeVisible();
+  await expect(workbench.getByText(/No source-qualified candidates currently match this task family/i)).toBeVisible();
 
   await assertNoHorizontalOverflow(page);
 });
