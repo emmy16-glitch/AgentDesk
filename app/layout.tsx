@@ -1,4 +1,9 @@
 import type { Metadata } from "next";
+// Self-hosted Inter (no external font requests at runtime).
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/inter/latin-700.css";
+import "@fontsource/inter/latin-800.css";
 import "./globals.css";
 import AppProviders from "@/components/providers/AppProviders";
 

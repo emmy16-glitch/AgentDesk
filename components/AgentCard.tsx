@@ -5,7 +5,7 @@ import HireButton from "@/components/agents/HireButton";
 
 export default function AgentCard({ agent }: { agent: Agent }) {
   return <article className="agent-card">
-    <header><div className="agent-icon" style={{ backgroundColor: agent.color }}><AgentIcon name={agent.icon} /></div><div><h2>{agent.name}{agent.verified && <CheckCircle2 size={14} fill="#1596e8" className="verified" />}</h2><p>{agent.category}</p></div></header>
+    <header><div className="agent-icon" style={{ backgroundColor: agent.color }}><AgentIcon name={agent.icon} /></div><div><h2><span>{agent.name}</span>{agent.verified && <CheckCircle2 size={14} fill="#1596e8" className="verified" />}</h2><p>{agent.category}</p></div></header>
     <p className="agent-description">{agent.description}</p>
     <div className="score-box"><b>{agent.trustScore}%</b><span>Trust Score</span></div>
     <dl className="agent-metrics"><Metric value={agent.activeUsers} label="Interactions" /><Metric value={agent.uptime} label="Uptime" /><Metric value={agent.performance} label="Active" /></dl>
