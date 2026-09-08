@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./auditions.css";
+import "./hiring.css";
 import "./responsive-hardening.css";
 import AppProviders from "@/components/providers/AppProviders";
 

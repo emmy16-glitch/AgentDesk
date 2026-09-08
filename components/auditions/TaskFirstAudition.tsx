@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clock3, ExternalLink, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
+import { Check, Clock3, ExternalLink, Eye, EyeOff, FlaskConical, Loader2, ShieldAlert, Trophy } from "lucide-react";
+import IndependentCheck from "@/components/auditions/IndependentCheck";
+import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
 import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
-import type { AuditionTask } from "@/lib/auditions/types";
-import type { ComparedAudition } from "@/lib/auditions/compare";
+import type { AuditionResult, AuditionTask } from "@/lib/auditions/types";
+import { compareAuditions, type ComparedAudition } from "@/lib/auditions/compare";
 
 const CATEGORIES: MarketplaceCategory[] = [
   "Health Factor Monitoring",
   "Yield Optimisation",
   "Grid Trading",
   "Rebalancing",
+];
+
+const RANKING_METHOD = [
+  "audition completion status",
+  "usable task-specific output",
+  "machine-readable quote availability",
+  "preserved evidence count",
+  "measured latency",
 ];
 
 interface BatchResponse {
@@ -20,6 +30,22 @@ interface BatchResponse {
   results?: ComparedAudition[];
   failures?: Array<{ tokenId: number; error: string }>;
   rankingMethod?: string[];
+}
+
+interface SingleResponse {
+  ok: boolean;
+  error?: string;
+  result?: AuditionResult;
+}
+
+type RaceStatus = AuditionResult["status"] | "running" | "request-error";
+interface RaceEntry {
+  tokenId: number;
+  startedAt: number;
+  finishedAt?: number;
+  status: RaceStatus;
+  latencyMs?: number | null;
+  error?: string;
 }
 
 interface Props {
@@ -32,6 +58,7 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
   const [category, setCategory] = useState<MarketplaceCategory>("Yield Optimisation");
   const [selected, setSelected] = useState<number[]>([]);
   const [running, setRunning] = useState(false);
+  const [race, setRace] = useState<RaceEntry[]>([]);
   const [runError, setRunError] = useState<string | null>(null);
   const [response, setResponse] = useState<BatchResponse | null>(null);
 
@@ -57,6 +84,7 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
   useEffect(() => {
     setSelected(candidates.slice(0, 3).map((agent) => agent.tokenId));
     setResponse(null);
+    setRace([]);
     setRunError(null);
   }, [category, candidates]);
 
@@ -131,15 +159,50 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
     setRunning(true);
     setRunError(null);
     setResponse(null);
+    const startedAt = Date.now();
+    setRace(selected.map((tokenId) => ({ tokenId, startedAt, status: "running" })));
+
     try {
-      const request = await fetch("/api/auditions/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenIds: selected, task }),
+      const outcomes = await Promise.all(selected.map(async (tokenId) => {
+        try {
+          const request = await fetch("/api/auditions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tokenId, task }),
+          });
+          const body = await request.json() as SingleResponse;
+          if (!request.ok || !body.ok || !body.result) throw new Error(body.error || "Live audition request failed");
+          const result = body.result;
+          setRace((current) => current.map((entry) => entry.tokenId === tokenId ? {
+            ...entry,
+            finishedAt: Date.now(),
+            status: result.status,
+            latencyMs: result.latencyMs,
+            error: result.error ?? undefined,
+          } : entry));
+          return { tokenId, result, error: null as string | null };
+        } catch (cause) {
+          const error = cause instanceof Error ? cause.message : "Live audition request failed";
+          setRace((current) => current.map((entry) => entry.tokenId === tokenId ? {
+            ...entry,
+            finishedAt: Date.now(),
+            status: "request-error",
+            error,
+          } : entry));
+          return { tokenId, result: null as AuditionResult | null, error };
+        }
+      }));
+
+      const actualResults = outcomes.flatMap((entry) => entry.result ? [entry.result] : []);
+      const failures = outcomes.flatMap((entry) => entry.error ? [{ tokenId: entry.tokenId, error: entry.error }] : []);
+      setResponse({
+        ok: true,
+        checkedAt: new Date().toISOString(),
+        results: compareAuditions(actualResults),
+        failures,
+        rankingMethod: RANKING_METHOD,
       });
-      const body = await request.json() as BatchResponse;
-      if (!request.ok || !body.ok) throw new Error(body.error || "Live auditions failed");
-      setResponse(body);
+      if (!actualResults.length) setRunError("No candidate produced a comparable live audition result.");
     } catch (error) {
       setRunError(error instanceof Error ? error.message : "Live auditions failed");
     } finally {
@@ -225,10 +288,11 @@ export default function TaskFirstAudition({ agents, discoveryLoading, discoveryE
 
       {runError ? <div className="audition-run-error" role="alert">{runError}</div> : null}
       <button className="gold-button audition-submit" disabled={running || selected.length === 0 || Boolean(discoveryError)} type="submit">
-        {running ? <><Loader2 className="spin" size={17} /> Auditioning {selected.length} agent{selected.length === 1 ? "" : "s"}…</> : <><FlaskConical size={17} /> Run live auditions ({selected.length})</>}
+        {running ? <><Loader2 className="spin" size={17} /> Live audition race running…</> : <><FlaskConical size={17} /> Run live auditions ({selected.length})</>}
       </button>
     </form>
 
+    {race.length ? <RaceBoard race={race} /> : null}
     {response ? <AuditionComparison response={response} names={names} /> : null}
   </section>;
 }
@@ -254,7 +318,37 @@ function Field({
   </label>;
 }
 
+function RaceBoard({ race }: { race: RaceEntry[] }) {
+  const [now, setNow] = useState(Date.now());
+  const active = race.some((entry) => entry.status === "running");
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [active]);
+
+  return <section className="audition-race" aria-label="Live audition race">
+    <div className="race-heading"><span>LIVE AUDITION RACE</span><strong>{race.filter((entry) => entry.status !== "running").length}/{race.length} finished</strong></div>
+    <div className="race-lanes">
+      {race.map((entry, index) => {
+        const elapsed = (entry.finishedAt ?? now) - entry.startedAt;
+        const alias = `Candidate ${String.fromCharCode(65 + index)}`;
+        return <div className={`race-lane race-${entry.status}`} key={entry.tokenId}>
+          <div><span>{alias}</span><small>identity stays blind during the race</small></div>
+          <div className="race-state">
+            {entry.status === "running" ? <Loader2 size={12} className="spin" /> : null}
+            <b>{entry.status}</b>
+            <time>{entry.latencyMs !== undefined && entry.latencyMs !== null ? `${entry.latencyMs} ms service` : `${(elapsed / 1000).toFixed(1)}s elapsed`}</time>
+          </div>
+          {entry.error ? <p>{entry.error}</p> : null}
+        </div>;
+      })}
+    </div>
+  </section>;
+}
+
 function AuditionComparison({ response, names }: { response: BatchResponse; names: Map<number, string> }) {
+  const [blind, setBlind] = useState(true);
   const results = response.results ?? [];
   const failures = response.failures ?? [];
   return <section className="audition-comparison" id="comparison" aria-labelledby="comparison-heading">
@@ -263,16 +357,29 @@ function AuditionComparison({ response, names }: { response: BatchResponse; name
         <span className="comparison-eyebrow">LIVE EVIDENCE COMPARISON</span>
         <h3 id="comparison-heading">Who proved the best fit?</h3>
       </div>
-      {response.checkedAt ? <span className="comparison-freshness"><Clock3 size={14} /> checked {new Date(response.checkedAt).toLocaleTimeString()}</span> : null}
+      <div className="comparison-controls">
+        <button type="button" className="blind-toggle" onClick={() => setBlind((value) => !value)}>
+          {blind ? <><Eye size={14} /> Reveal identities</> : <><EyeOff size={14} /> Blind identities</>}
+        </button>
+        {response.checkedAt ? <span className="comparison-freshness"><Clock3 size={14} /> checked {new Date(response.checkedAt).toLocaleTimeString()}</span> : null}
+      </div>
     </div>
 
+    {blind && results.length ? <p className="blind-note">Blind audition mode is on: judge the evidence first. Identity and the paid-hire button stay hidden until you reveal the candidates.</p> : null}
+
     {results.length ? <div className="comparison-grid">
-      {results.map((result) => <ResultCard key={result.candidate.tokenId} result={result} name={names.get(result.candidate.tokenId)} />)}
+      {results.map((result, index) => <ResultCard
+        key={result.candidate.tokenId}
+        result={result}
+        name={names.get(result.candidate.tokenId)}
+        blind={blind}
+        alias={`Candidate ${String.fromCharCode(65 + index)}`}
+      />)}
     </div> : <div className="audition-empty">No candidate produced comparable evidence in this run.</div>}
 
     {failures.length ? <div className="identity-failures">
       <strong>Identity/runtime failures</strong>
-      {failures.map((failure) => <p key={failure.tokenId}>ERC-8004 #{failure.tokenId}: {failure.error}</p>)}
+      {failures.map((failure) => <p key={failure.tokenId}>{blind ? "A candidate" : `ERC-8004 #${failure.tokenId}`}: {failure.error}</p>)}
     </div> : null}
 
     {response.rankingMethod?.length ? <div className="ranking-method">
@@ -282,14 +389,17 @@ function AuditionComparison({ response, names }: { response: BatchResponse; name
   </section>;
 }
 
-function ResultCard({ result, name }: { result: ComparedAudition; name?: string }) {
+function ResultCard({ result, name, blind, alias }: { result: ComparedAudition; name?: string; blind: boolean; alias: string }) {
   const winner = result.comparison.label === "BEST FIT";
+  const actualName = name || `ERC-8004 Agent #${result.candidate.tokenId}`;
   return <article className={winner ? "audition-result winner" : "audition-result"}>
     <header>
       <div>
         <span className={`fit-label fit-${result.comparison.label.toLowerCase().replaceAll(" ", "-")}`}>{winner ? <Trophy size={13} /> : null}{result.comparison.label}</span>
-        <h4>{name || `ERC-8004 Agent #${result.candidate.tokenId}`}</h4>
-        <a href={result.candidate.sourceUrl} target="_blank" rel="noreferrer">ERC-8004 #{result.candidate.tokenId} <ExternalLink size={12} /></a>
+        <h4>{blind ? alias : actualName}</h4>
+        {blind
+          ? <span className="blind-identity">identity hidden until reveal</span>
+          : <a href={result.candidate.sourceUrl} target="_blank" rel="noreferrer">ERC-8004 #{result.candidate.tokenId} <ExternalLink size={12} /></a>}
       </div>
       <span className={`audition-status status-${result.status}`}>{result.status}</span>
     </header>
@@ -310,5 +420,9 @@ function ResultCard({ result, name }: { result: ComparedAudition; name?: string 
 
     {result.taskFit.missingEvidence.length ? <details className="evidence-details"><summary>Missing evidence ({result.taskFit.missingEvidence.length})</summary><ul>{result.taskFit.missingEvidence.map((reason) => <li key={reason}>{reason}</li>)}</ul></details> : null}
     <details className="evidence-details"><summary>Evidence trail ({result.evidence.length})</summary><ul>{result.evidence.map((item, index) => <li key={`${item.source}-${index}`}><b>{item.kind}</b> — {item.summary}</li>)}</ul></details>
+
+    {result.status === "completed" ? <IndependentCheck result={result} /> : null}
+    {!blind && result.status === "completed" ? <ERC8183HireFlow result={result} agentName={actualName} /> : null}
+    {blind && result.status === "completed" ? <div className="blind-hire-lock">Reveal identities before opening a paid hire.</div> : null}
   </article>;
 }
