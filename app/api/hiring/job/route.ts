@@ -192,11 +192,12 @@ export async function POST(request: NextRequest) {
           if (!event) continue;
           const args = event.args;
           const rawOptParams = args.optParams;
-          if (!rawOptParams || rawOptParams === "0x") break;
+          const deliverableHash = args.deliverable;
+          if (!rawOptParams || rawOptParams === "0x" || !deliverableHash) break;
           try {
             const params = JSON.parse(hexToString(rawOptParams)) as { deliverable_url?: string };
             if (typeof params.deliverable_url === "string" && params.deliverable_url.trim()) {
-              onChainPointer = { url: params.deliverable_url.trim(), hash: args.deliverable };
+              onChainPointer = { url: params.deliverable_url.trim(), hash: deliverableHash };
             }
           } catch {
             deliverableError = "On-chain JobInitialised optParams did not contain valid JSON.";
