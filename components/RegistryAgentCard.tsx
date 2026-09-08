@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Check, ExternalLink, ShieldCheck } from "lucide-react";
 import type { DiscoveredAgent } from "@/lib/8004scan";
 
@@ -42,8 +43,9 @@ export default function RegistryAgentCard({ agent }: { agent: DiscoveredAgent })
     <div className="agent-bottom">
       <strong>Registry listed</strong>
       <small>Reachability not yet asserted</small>
+      <Link href={`/agents/${agent.tokenId}`}>Inspect on-chain identity</Link>
       <a href={agent.sourceUrl} target="_blank" rel="noreferrer" aria-label={`Verify ${agent.name} on 8004scan`}>
-        Verify registry proof <ExternalLink size={13} />
+        8004scan proof <ExternalLink size={13} />
       </a>
     </div>
   </article>;
