@@ -17,6 +17,12 @@ interface JobCheckResponse {
     agentWallet: string | null;
     sourceUrl: string;
   };
+  signedTerms?: {
+    verified: boolean;
+    method?: string;
+    negotiationHash?: string;
+    error?: string;
+  };
   job?: {
     jobId: string;
     chainId: 56 | 97;
@@ -76,7 +82,13 @@ export default function JobEvidencePanel({
       const response = await fetch("/api/hiring/job", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenId, jobId: job.jobId, chainId: job.chainId, fundBlock: job.fundBlock }),
+        body: JSON.stringify({
+          tokenId,
+          jobId: job.jobId,
+          chainId: job.chainId,
+          fundBlock: job.fundBlock,
+          receiptHash: job.receiptHash,
+        }),
       });
       const body = await response.json() as JobCheckResponse;
       if (!response.ok || !body.ok || !body.job) throw new Error(body.error || "Could not verify the ERC-8183 job");
@@ -93,6 +105,14 @@ export default function JobEvidencePanel({
   async function publishCompletionFeedback() {
     if (!check?.job || check.job.status !== "COMPLETED") {
       setError("Completion feedback is locked until ERC-8183 reports COMPLETED on-chain.");
+      return;
+    }
+    if (!check.signedTerms?.verified) {
+      setError("Completion feedback is locked because the provider-signed on-chain job terms were not verified.");
+      return;
+    }
+    if (!check.deliverable?.verifiedAgainstChain) {
+      setError("Completion feedback is locked until the provider result reproduces the on-chain ERC-8183 deliverable hash.");
       return;
     }
     if (!isConnected || !address) {
@@ -173,6 +193,11 @@ export default function JobEvidencePanel({
       </button>
     </div>
 
+    {check?.signedTerms ? <p className={check.signedTerms.verified ? "hire-boundary" : "hire-warning"}>
+      {check.signedTerms.verified
+        ? `Provider-signed on-chain terms verified (${check.signedTerms.method}).`
+        : `Signed-term verification: ${check.signedTerms.error || "not verified"}`}
+    </p> : null}
     {check?.proofBoundary ? <p className="hire-boundary">{check.proofBoundary}</p> : null}
 
     {check?.deliverable ? <div className="provider-deliverable">
@@ -187,8 +212,8 @@ export default function JobEvidencePanel({
     {check?.deliverableError ? <div className="hire-warning">Result retrieval: {check.deliverableError}</div> : null}
 
     {check?.job?.status === "COMPLETED" ? <div className="portable-reputation">
-      <div><ShieldCheck size={16} /><span><strong>Portable completion reputation</strong><small>Publish one binary ERC-8004 signal backed by this paid job and the audition receipt. No subjective star score is invented.</small></span></div>
-      {feedbackTx ? <a href={bscScanTxUrl(feedbackTx, 56)} target="_blank" rel="noreferrer" className="reputation-proof-link">Feedback on BscScan <ExternalLink size={12} /></a> : <button type="button" className="hire-action" onClick={publishCompletionFeedback} disabled={publishing}>
+      <div><ShieldCheck size={16} /><span><strong>Portable completion reputation</strong><small>Publish one binary ERC-8004 signal only after signed terms, paid completion and the provider's on-chain deliverable hash are all verified. No subjective star score is invented.</small></span></div>
+      {feedbackTx ? <a href={bscScanTxUrl(feedbackTx, 56)} target="_blank" rel="noreferrer" className="reputation-proof-link">Feedback on BscScan <ExternalLink size={12} /></a> : <button type="button" className="hire-action" onClick={publishCompletionFeedback} disabled={publishing || !check.signedTerms?.verified || !check.deliverable?.verifiedAgainstChain}>
         {publishing ? <><Loader2 size={14} className="spin" /> Publishing…</> : <>Publish verified completion to ERC-8004</>}
       </button>}
     </div> : null}
