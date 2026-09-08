@@ -24,4 +24,4 @@ Copy the emitted address into `NEXT_PUBLIC_AGENTTRUST_MARKETPLACE_ADDRESS`, rest
 
 ## Camber AI
 
-`POST /api/ai/healthguard` delegates to `CAMBER_API_URL` when `CAMBER_API_KEY` is present. Without credentials, it supplies a clearly local HealthGuard safety response so the demo remains usable.
+`POST /api/assistant` runs the installed Camber CLI on the server with `CAMBER_TOKEN` and the `@emmanuel.healthguard` agent tag. The token is never sent to the browser. Install and authenticate the Camber CLI, then set `CAMBER_TOKEN` in `.env.local` before using the assistant.
