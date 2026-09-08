@@ -1,7 +1,7 @@
 ---
-version: alpha
-name: "AgentTrust"
-description: "A dark BNB Chain marketplace that helps people compare and hire verified AI agents."
+version: beta
+name: "AgentDesk"
+description: "A task-first BNB Chain marketplace where source-backed agents prove fit before hiring."
 colors:
   background: "#03080D"
   surface: "#09121B"
@@ -12,15 +12,15 @@ colors:
   muted: "#7E8A9A"
 typography:
   sans:
-    fontFamily: "Arial, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
   display:
-    fontFamily: "Arial, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
 rounded:
   DEFAULT: "0.625rem"
   control: "0.5rem"
   pill: "999px"
 spacing:
-  page-max: "77.5rem"
+  page-max: "77.625rem"
   column-gap: "1.125rem"
   card-padding: "1rem"
 components:
@@ -40,79 +40,152 @@ components:
     textColor: "#7E8A9A"
 ---
 
-# AgentTrust Design System
+# AgentDesk Design System
 
-## Overview
+## Creative north star
 
-### Creative North Star
+A compact, exchange-quality BNB interface in a near-black control room. BNB gold is reserved for primary decisions and the illuminated agent cube. The visual language should feel operational rather than speculative.
 
-The supplied AgentTrust BNB marketplace capture: a compact exchange-quality dashboard in a near-black control room, with BNB gold reserved for trust, activation, and the illuminated 3D agent cube.
+The product thesis is defined in `HACKATHON_LOCK.md`:
 
-### Product context and register
+> **Don't trust the profile. Audition the agent.**
 
-- **Audience and primary job:** BNB Chain users comparing verified autonomous agents before activation.
-- **Target market(s) and evidence:** Global English-language Web3 marketplace, evidenced by the supplied marketplace content and BSC Testnet controls.
-- **Locale(s) and language policy:** English (`en`); concise product labels and compact numeric data.
-- **Usage scene:** Desktop-first exploration, with the wallet and assistant visible alongside the agent catalog.
-- **Register:** Hybrid brand/product. The hero cube is expressive; card data and assistant panels stay operationally dense.
-- **Memorable signature:** The glowing, faceted BNB cube and its surrounding monitor/trade/optimize/protect markers.
-- **Restraint:** Card surfaces and dashboard panels use quiet tonal separation rather than broad gradients or decorative glass.
-- **Anti-references:** Generic neon crypto landing pages, oversized rounded SaaS cards, and emoji iconography.
-- **Token ownership/runtime mapping:** The hand-authored Tailwind v4 `@theme` block in `app/globals.css` is canonical. This file mirrors its values; shared page and component styles consume those runtime tokens.
+The design system must support that thesis. It must never make a decorative score look more authoritative than the underlying evidence.
+
+## Product context
+
+- **Audience:** BNB Chain users trying to choose an agent for a specific task.
+- **Primary job:** describe/select a task, discover relevant agents, inspect current evidence, audition candidates, compare, then hire the chosen agent through a real commerce path.
+- **Locale:** English (`en`).
+- **Usage scene:** desktop and mobile decision-making; advanced Web3 protocol detail is available but is not a prerequisite for using the marketplace.
+- **Memorable signature:** the glowing BNB cube and monitor/trade/optimize/protect markers.
+- **Restraint:** quiet dark panels, thin borders, sparse gold glow, no generic neon-crypto treatment.
+- **Runtime token owner:** Tailwind v4 `@theme` in `app/globals.css`; `app/responsive-hardening.css` contains later responsive corrections.
+
+## Evidence-first visual hierarchy
+
+The interface should make the distinction between evidence states obvious:
+
+```text
+registry listed
+≠ identity resolved
+≠ metadata resolved
+≠ endpoint reachable
+≠ audition passed
+≠ hired
+≠ completed
+```
+
+Do not collapse these into a generic blue check or a single “verified” badge.
+
+Preferred evidence UI:
+
+- source name and ID;
+- checked/observed timestamp;
+- explicit state labels such as `REGISTRY LISTED`, `REACHABLE`, `AUDITION COMPLETE`;
+- source links / evidence drawers;
+- missing evidence shown as missing rather than converted to a positive-looking zero or score.
 
 ## Colors
 
-`background` anchors the canvas. `surface` and `card` create low-contrast depth with cool blue-black borders. `primary` is an expressive BNB gold for primary actions, active navigation, and the cube glow. `success` identifies positive agent and network state. White is reserved for primary names and metrics; `muted` is used for supporting metadata.
+`background` anchors the canvas. `surface` and `card` create low-contrast depth with cool blue-black borders. `primary` is BNB gold for the primary user path and selected states. `success` means a specific check succeeded; it must not mean an agent is globally safe or trustworthy.
+
+Use warning/error colors for unavailable, timeout, unsupported, or failed checks without implying malicious intent.
 
 ## Typography
 
-The system stack is intentionally neutral and dense. Hero display uses 800 weight and tight tracking; panel headings and controls use 600–700 weight. Supporting metadata stays 10–13px with generous line-height so the data-dense cards remain legible.
+Use a dense neutral system stack. Hero display uses heavy weight and tight tracking. Panel headings and controls use 600–700 weight. Evidence labels and metadata can be smaller, but must remain readable. Real registry names are unbounded user/external content: they must wrap or truncate accessibly rather than break layout.
 
 ## Layout
 
-The desktop shell is a fixed marketplace column plus 304px dashboard column with an 18px gap. The catalog is a four-card grid. At narrow widths, the sidebar stacks and cards reduce to two then one column. The main reference viewport uses a 1255px left-aligned content region to preserve the visible dashboard edge.
-
-## Elevation & Depth
-
-Depth comes from dark tonal layers, thin blue-black borders, inset highlights, and sparse gold glows. Only the hero cube and primary activation controls emit warm light.
-
-## Shapes
-
-Panels and cards use 10px corners; controls use 7–10px corners. Category filters are the only intentional pills. Lucide and small inline SVG icons use consistent rounded strokes.
+- Canonical desktop shell: centered, max width approximately 1242px.
+- Current discovery view may retain the marketplace + utility-sidebar structure during Phase 1.
+- The product evolves toward a task-first surface in Phase 2/3; do not protect the old four-card grid at the expense of the audition flow.
+- At narrower widths the sidebar stacks and discovery/compare surfaces reduce columns without horizontal page overflow.
+- Category/task controls must remain horizontally scrollable/reachable on mobile.
 
 ## Components
 
-### Foundational visual states
+### Hero
 
-Buttons brighten on hover and expose a gold visible focus ring. Cards lift slightly on hover. Reduced-motion disables these enhancements. Search has an owned clear action when it contains text.
+Primary message:
 
-### Buttons and actions
+> **Don't trust the profile. Audition the agent.**
 
-Gold solid buttons are for activation, connection, and the primary marketplace path. Outline/dark buttons are secondary. Green indicates current/healthy state, not a primary action.
+The hero should explain the user benefit before protocol names. ERC-8004, ERC-8183, A2A, MCP and x402 belong in evidence/developer detail unless directly relevant to the current decision.
 
-### Navigation and data display
+### Task entry
 
-The active navigation item has a gold underline. Agent cards prioritize icon, category, trust score, compact metrics, capability checklist, price, and one activation action in that order.
+The target first interaction is:
 
-### Forms and overlays
+> **What do you want an agent to do?**
 
-Search and assistant fields are dark, bordered inputs with a visible focus state. Wallet selection is an app-owned modal; hire actions preserve their geometry while waiting for wallet confirmation and the BSC Testnet receipt. Success and failure appear inline at the action that caused them.
+The four required task families are Health Factor Monitoring, Yield Optimisation, Grid Trading and Rebalancing. Their forms may differ because the task inputs genuinely differ.
 
-### Iconography
+### Discovery cards
 
-Use Lucide icons and inline SVG marks, never emoji. Filled colored icon tiles are reserved for agent identity; utility icons remain outlined.
+Cards are candidate summaries, not proof by decoration. Prioritize:
 
-### Motion
+1. real agent name / source identity;
+2. evidence-backed category/capability match;
+3. source-attributed reputation/activity fields if available;
+4. provenance and freshness;
+5. current operational state when checked;
+6. inspect/audition action.
 
-Motion is limited to short hover lifts and color transitions. It is disabled for reduced-motion preference.
+Do **not** prioritize invented global trust percentages, invented interaction counts, invented uptime, fabricated performance duration, or fake verification badges.
 
-### Content and data visualization
+### Audition results
 
-Use direct action labels such as “Hire Agent” and data-first labels such as “Trust Score”, “Interactions”, and “Uptime”.
+Audition surfaces should prioritize:
 
-## Do's and Don'ts
+- status: complete / unsupported / timeout / error;
+- task-specific output;
+- latency;
+- quote and expiry when real;
+- raw/source-linked evidence;
+- freshness;
+- explainable Task Fit reasons;
+- missing evidence.
 
-- **Do:** Keep the 3D BNB object as the sole expressive visual centerpiece.
-- **Do:** Maintain the permanent desktop dashboard beside the hero and catalog.
-- **Don't:** Use broad bright gradients on ordinary panels.
-- **Don't:** Replace the catalog’s compact trust and capability data with spacious marketing cards.
+Preferred ranking labels: `BEST FIT`, `STRONG FIT`, `PARTIAL FIT`, `NOT ENOUGH EVIDENCE`.
+
+### Comparison
+
+Use side-by-side rows where the user can see *why* candidates differ. Highlight a row only when the underlying evidence genuinely differs. Never hide missing evidence inside a composite score.
+
+### Hiring
+
+The primary hire state must eventually represent a real Agent Studio / ERC-8183 job and returned result. The legacy BSC Testnet activation contract may be shown only in explicitly marked prototype/developer context.
+
+## Forms and overlays
+
+Search, task forms and assistant fields use dark bordered inputs with visible focus states. Wallet selection is app-owned. Async operations must keep the initiating control and status understandable: waiting, timeout, failure and completion are distinct states.
+
+## Iconography
+
+Use Lucide icons and inline SVG marks, never emoji. Colored icon tiles can represent task categories or agent identity. A check icon means only the specific check named beside it passed.
+
+## Motion
+
+Motion is limited to short hover lifts, reveal transitions and status changes. Respect `prefers-reduced-motion`.
+
+## Accessibility and resilience
+
+- WCAG 2.2 AA target.
+- No horizontal page overflow at supported mobile widths.
+- All category/task choices keyboard reachable.
+- External names/descriptions must not break layout.
+- Errors must not erase the user's task input.
+- Empty source results are valid product states; do not fill them with fake inventory.
+
+## Do's and don'ts
+
+- **Do:** keep the BNB cube as the primary expressive visual.
+- **Do:** make provenance inspectable.
+- **Do:** show timestamps and evidence-state labels.
+- **Do:** optimize the main journey for the user's task.
+- **Don't:** turn ERC-8004 into a decorative verification badge.
+- **Don't:** reintroduce static trust/uptime/user-count demo metrics into judge-facing UI.
+- **Don't:** preserve the old four-card screenshot layout if it conflicts with task-first audition UX.
+- **Don't:** call a prototype activation a completed agent hire.
