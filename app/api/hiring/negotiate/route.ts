@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 
     const deployment = ERC8183_DEPLOYMENTS[chainValue];
     const price = String(quote.price ?? "").trim();
-    if (!/^\d+$/.test(price) || BigInt(price) <= 0n) {
+    if (!/^\d+$/.test(price) || BigInt(price) <= BigInt(0)) {
       return NextResponse.json({ ok: false, error: "Agent quote price must be positive integer base units" }, { status: 422 });
     }
 
