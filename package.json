@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:ui": "playwright test",
     "contract:compile": "node scripts/compile-contract.mjs",
     "contract:deploy:testnet": "node scripts/deploy-marketplace.mjs"
   },
