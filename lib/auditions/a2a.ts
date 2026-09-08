@@ -14,6 +14,7 @@ interface AgentCard {
   description?: string;
   url?: string;
   preferredTransport?: string;
+  supportedInterfaces?: Array<{ url?: string; protocolBinding?: string; protocolVersion?: string }>;
   security?: unknown;
   securitySchemes?: unknown;
   skills?: unknown;
@@ -35,6 +36,12 @@ interface ResolvedAgentCard {
   sourceUrl: string;
 }
 
+interface ServiceOffer {
+  output: string;
+  quote: AuditionQuote | null;
+  evidenceSummary: string;
+}
+
 function timeoutError(error: unknown): boolean {
   return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
 }
@@ -47,10 +54,14 @@ function isAgentCard(value: unknown): value is AgentCard {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const card = value as Record<string, unknown>;
   const hasName = typeof card.name === "string" && card.name.trim().length > 0;
-  const hasUrl = typeof card.url === "string" && card.url.trim().length > 0;
+  const hasLegacyUrl = typeof card.url === "string" && card.url.trim().length > 0;
+  const hasInterfaces = Array.isArray(card.supportedInterfaces) && card.supportedInterfaces.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return typeof (item as Record<string, unknown>).url === "string";
+  });
   const hasProtocolVersion = typeof card.protocolVersion === "string" && card.protocolVersion.trim().length > 0;
   const hasSkills = Array.isArray(card.skills);
-  return hasName && hasUrl && (hasProtocolVersion || hasSkills);
+  return hasName && (hasLegacyUrl || hasInterfaces) && (hasProtocolVersion || hasSkills || hasInterfaces);
 }
 
 function renderStructuredData(value: unknown): string | null {
@@ -71,20 +82,25 @@ function contentFromParts(parts: unknown): string[] {
   return parts.flatMap((part) => {
     if (!part || typeof part !== "object") return [];
     const value = part as Record<string, unknown>;
+    const partKind = typeof value.kind === "string" ? value.kind : value.type;
 
-    if (value.kind === "text" && typeof value.text === "string" && value.text.trim()) {
+    if (partKind === "text" && typeof value.text === "string" && value.text.trim()) {
       return [value.text.trim()];
     }
 
-    // A2A DataPart is a first-class task result. Preserve it as readable JSON
-    // rather than incorrectly declaring that a real agent returned no output.
-    if (value.kind === "data" && "data" in value) {
+    if (partKind === "data" && "data" in value) {
       const rendered = renderStructuredData(value.data);
       return rendered ? [rendered] : [];
     }
 
     return [];
   });
+}
+
+function outputFromMessage(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const content = contentFromParts((value as Record<string, unknown>).parts);
+  return content.length ? content.join("\n\n") : null;
 }
 
 function extractOutput(payload: unknown): string | null {
@@ -94,24 +110,34 @@ function extractOutput(payload: unknown): string | null {
   if (!result || typeof result !== "object") return null;
   const value = result as Record<string, unknown>;
 
-  const direct = contentFromParts(value.parts);
-  if (direct.length) return direct.join("\n\n");
+  const direct = outputFromMessage(value);
+  if (direct) return direct;
+
+  const nestedMessage = outputFromMessage(value.message);
+  if (nestedMessage) return nestedMessage;
 
   const status = value.status;
   if (status && typeof status === "object") {
-    const statusMessage = (status as Record<string, unknown>).message;
-    if (statusMessage && typeof statusMessage === "object") {
-      const statusContent = contentFromParts((statusMessage as Record<string, unknown>).parts);
-      if (statusContent.length) return statusContent.join("\n\n");
-    }
+    const statusMessage = outputFromMessage((status as Record<string, unknown>).message);
+    if (statusMessage) return statusMessage;
   }
 
   if (Array.isArray(value.artifacts)) {
     const artifactContent = value.artifacts.flatMap((artifact) => {
-      if (!artifact || typeof artifact !== "object") return [];
-      return contentFromParts((artifact as Record<string, unknown>).parts);
+      const rendered = outputFromMessage(artifact);
+      return rendered ? [rendered] : [];
     });
     if (artifactContent.length) return artifactContent.join("\n\n");
+  }
+
+  if (Array.isArray(value.history)) {
+    for (const message of [...value.history].reverse()) {
+      if (!message || typeof message !== "object") continue;
+      const role = (message as Record<string, unknown>).role;
+      if (role === "user") continue;
+      const rendered = outputFromMessage(message);
+      if (rendered) return rendered;
+    }
   }
 
   return null;
@@ -175,6 +201,75 @@ function extractQuote(payload: unknown): AuditionQuote | null {
   return findQuoteInValue(value);
 }
 
+function findApplicationError(value: unknown, depth = 0): string | null {
+  if (depth > 5 || !value || typeof value !== "object") return null;
+  if (!Array.isArray(value)) {
+    const object = value as Record<string, unknown>;
+    if (typeof object.error === "string" && object.error.trim()) return object.error.trim();
+  }
+  const children = Array.isArray(value) ? value : Object.values(value as Record<string, unknown>);
+  for (const child of children) {
+    const found = findApplicationError(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+const SERVICE_CATEGORIES: Record<AuditionTask["category"], string[]> = {
+  "Health Factor Monitoring": ["health-factor-monitoring", "health factor", "liquidation"],
+  "Yield Optimisation": ["yield-optimization", "yield-optimisation", "yield optimization", "yield optimisation"],
+  "Grid Trading": ["grid-trading", "grid trading", "grid_plan"],
+  Rebalancing: ["rebalancing", "rebalance", "rebalance_plan"],
+};
+
+function parseDisplayQuote(display: unknown): AuditionQuote | null {
+  if (typeof display !== "string" || !display.trim()) return null;
+  const match = display.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s+(.+)$/);
+  if (!match) return null;
+  return { amount: match[1], asset: match[2].trim(), source: "A2A live service offer" };
+}
+
+function extractServiceOffer(payload: unknown, task: AuditionTask): ServiceOffer | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const result = (payload as Record<string, unknown>).result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+  const root = result as Record<string, unknown>;
+  if (!Array.isArray(root.services)) return null;
+
+  const terms = SERVICE_CATEGORIES[task.category];
+  const matchingService = root.services.find((service) => {
+    if (!service || typeof service !== "object" || Array.isArray(service)) return false;
+    const entry = service as Record<string, unknown>;
+    const haystack = `${String(entry.id ?? "")} ${String(entry.name ?? "")} ${String(entry.category ?? "")} ${String(entry.deliverables ?? "")}`.toLowerCase();
+    return terms.some((term) => haystack.includes(term));
+  });
+  if (!matchingService || typeof matchingService !== "object" || Array.isArray(matchingService)) return null;
+
+  const service = matchingService as Record<string, unknown>;
+  const name = typeof service.name === "string" && service.name.trim() ? service.name.trim() : "Matched service";
+  const deliverables = typeof service.deliverables === "string" ? service.deliverables.trim() : "The agent returned a live matching service offer.";
+  const needs = service.needs && typeof service.needs === "object" && !Array.isArray(service.needs)
+    ? renderStructuredData(service.needs)
+    : null;
+  const quote = parseDisplayQuote(service.price_display)
+    ?? (typeof service.price === "string" && typeof root.currency === "string"
+      ? { amount: service.price, asset: root.currency, source: "A2A live service offer (base units as returned)" }
+      : null);
+
+  const output = [
+    `Live pre-hire service offer matched to ${task.category}: ${name}.`,
+    deliverables,
+    needs ? `Inputs the agent says it needs:\n${needs}` : null,
+    "This is a live capability/quote response to the audition request, not proof that the paid job has been executed.",
+  ].filter((line): line is string => Boolean(line)).join("\n\n");
+
+  return {
+    output,
+    quote,
+    evidenceSummary: `The A2A response exposed a live ${task.category} service offer${quote ? ` priced at ${quote.amount} ${quote.asset}` : ""}.`,
+  };
+}
+
 async function readJsonLimited(response: Response, maxBytes: number): Promise<unknown> {
   const declaredLength = Number(response.headers.get("content-length") || 0);
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
@@ -220,7 +315,7 @@ async function resolveAgentCard(serviceEndpoint: string): Promise<ResolvedAgentC
       const response = await fetch(validation.url, {
         method: "GET",
         headers: {
-          Accept: "application/json",
+          Accept: "application/json, application/a2a+json",
           "User-Agent": "AgentDesk-Audition/1.0",
         },
         redirect: "manual",
@@ -248,6 +343,26 @@ async function resolveAgentCard(serviceEndpoint: string): Promise<ResolvedAgentC
   }
 
   throw new Error(`A2A Agent Card could not be resolved from the advertised A2A service or protocol-standard well-known path: ${lastReason}`);
+}
+
+function resolveA2ATarget(card: AgentCard): { target: string; transport: string } | null {
+  if (typeof card.url === "string" && card.url.trim()) {
+    return {
+      target: card.url.trim(),
+      transport: typeof card.preferredTransport === "string" && card.preferredTransport.trim()
+        ? card.preferredTransport.trim().toUpperCase()
+        : "JSONRPC",
+    };
+  }
+
+  if (Array.isArray(card.supportedInterfaces)) {
+    const jsonRpc = card.supportedInterfaces.find((item) =>
+      item && typeof item.url === "string" && String(item.protocolBinding ?? "JSONRPC").toUpperCase() === "JSONRPC",
+    );
+    if (jsonRpc?.url) return { target: jsonRpc.url.trim(), transport: "JSONRPC" };
+  }
+
+  return null;
 }
 
 export async function auditionA2AService(service: AgentService, task: AuditionTask): Promise<A2AExecution> {
@@ -291,8 +406,8 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
     };
   }
 
-  const transport = typeof card.preferredTransport === "string" ? card.preferredTransport.trim().toUpperCase() : "JSONRPC";
-  if (transport && transport !== "JSONRPC") {
+  const target = resolveA2ATarget(card);
+  if (!target) {
     return {
       status: "unsupported",
       latencyMs: null,
@@ -300,12 +415,22 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
       output: null,
       quote: null,
       evidence,
-      error: `A2A transport ${transport} is not supported by the current audition adapter.`,
+      error: "The A2A Agent Card does not expose a JSON-RPC interaction interface AgentDesk can audition.",
+    };
+  }
+  if (target.transport !== "JSONRPC") {
+    return {
+      status: "unsupported",
+      latencyMs: null,
+      checkedAt,
+      output: null,
+      quote: null,
+      evidence,
+      error: `A2A transport ${target.transport} is not supported by the current audition adapter.`,
     };
   }
 
-  const target = typeof card.url === "string" ? card.url.trim() : "";
-  const targetValidation = await validatePublicHttpsUrl(target);
+  const targetValidation = await validatePublicHttpsUrl(target.target);
   if (!targetValidation.ok) {
     return {
       status: "unsupported",
@@ -405,6 +530,19 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
     };
   }
 
+  const applicationError = findApplicationError(payload);
+  if (applicationError) {
+    return {
+      status: "error",
+      latencyMs,
+      checkedAt,
+      output: extractOutput(payload),
+      quote: extractQuote(payload),
+      evidence,
+      error: `A2A application error: ${applicationError}`,
+    };
+  }
+
   const state = taskState(payload);
   if (state === "input-required" || state === "submitted" || state === "working") {
     return {
@@ -418,6 +556,22 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
     };
   }
 
+  const serviceOffer = extractServiceOffer(payload, task);
+  if (serviceOffer) {
+    evidence[evidence.length - 1] = {
+      ...evidence[evidence.length - 1],
+      summary: `${evidence[evidence.length - 1].summary} ${serviceOffer.evidenceSummary}`,
+    };
+    return {
+      status: "completed",
+      latencyMs,
+      checkedAt,
+      output: serviceOffer.output,
+      quote: serviceOffer.quote,
+      evidence,
+    };
+  }
+
   const output = extractOutput(payload);
   if (!output) {
     return {
@@ -427,7 +581,7 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
       output: null,
       quote: extractQuote(payload),
       evidence,
-      error: "A2A service responded but did not return a usable text or structured-data result.",
+      error: "A2A service responded but did not return a usable text, structured-data, or matching live service-offer result.",
     };
   }
 
