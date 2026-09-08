@@ -1,4 +1,4 @@
-import { isAddress, keccak256, toHex, type Address, type Hex } from "viem";
+import { getAddress, isAddress, keccak256, toHex, type Address, type Hex } from "viem";
 import type { SupportedCommerceChainId } from "@/lib/erc8183";
 
 export const MAX_ERC8183_DESCRIPTION_BYTES = 4096;
@@ -114,7 +114,7 @@ export function canonicalSignedContent(envelope: CanonicalNegotiationEnvelope): 
   };
   if (quoteExpiresAt !== null) content.quote_expires_at = quoteExpiresAt;
   content.chain_id = envelope.chain_id;
-  content.verifying_contract = envelope.verifying_contract;
+  content.verifying_contract = getAddress(envelope.verifying_contract);
   return content;
 }
 
