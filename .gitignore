@@ -7,3 +7,7 @@
 *.log
 /npm-debug.log*
 .env.local
+/tests/.output
+/tests/screenshots
+/playwright-report
+/tsconfig.tsbuildinfo
