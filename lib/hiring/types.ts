@@ -20,12 +20,19 @@ export interface Erc8183NegotiatedQuote {
   verifyingContract: string;
   serviceEndpoint: string;
   negotiationEndpoint: string;
+  transport: "HTTP" | "A2A";
   taskDescription: string;
   auditionReceiptHash: string;
   task: AuditionTask;
   checkedAt: string;
   envelope: CanonicalNegotiationEnvelope;
   raw: unknown;
+}
+
+export interface ProviderNotificationEvidence {
+  status: "sent" | "not-required" | "unavailable";
+  detail: string;
+  checkedAt: string;
 }
 
 export interface Erc8183JobEvidence {
@@ -37,7 +44,9 @@ export interface Erc8183JobEvidence {
   budgetTx: string;
   approvalTx?: string;
   fundTx: string;
+  fundBlock: string;
   provider: string;
   priceBaseUnits: string;
   fundedAt: string;
+  providerNotification: ProviderNotificationEvidence;
 }
