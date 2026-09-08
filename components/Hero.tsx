@@ -1,16 +1,16 @@
-import { ArrowRight, BarChart3, LockKeyhole, Play, ShieldCheck } from "lucide-react";
+import { ArrowRight, BarChart3, Play, SearchCheck, ShieldCheck } from "lucide-react";
 
 export default function Hero() {
   return <section className="hero-section" aria-labelledby="marketplace-title">
     <div className="hero-copy">
       <div className="studio-chip"><CubeMark className="h-5 w-5" /> BNB AGENT STUDIO</div>
-      <h1 id="marketplace-title">Discover. Trust. Hire.<br />AI Agents on <span>BNB Chain.</span></h1>
-      <p>The leading marketplace for AI agents. Browse, compare, and hire verified agents to put your capital, data and ideas to work.</p>
-      <div className="hero-actions"><button type="button" className="gold-button">Explore Agents <ArrowRight size={17} strokeWidth={2.5} /></button><button type="button" className="dark-button"><span className="play-disc"><Play size={9} fill="currentColor" strokeWidth={3} /></span>How it works</button></div>
+      <h1 id="marketplace-title">Don&apos;t trust the profile.<br /><span>Audition the agent.</span></h1>
+      <p>Discover ERC-8004 agents on BNB Chain with source-backed identity and reputation data. Next, AgentDesk will let candidates prove task fit before you hire them.</p>
+      <div className="hero-actions"><a href="#agents" className="gold-button">Explore Registered Agents <ArrowRight size={17} strokeWidth={2.5} /></a><a href="#how-it-works" className="dark-button"><span className="play-disc"><Play size={9} fill="currentColor" strokeWidth={3} /></span>How it works</a></div>
       <div className="hero-features">
-        <Feature icon={ShieldCheck} title="Verified Agents" detail="On-chain identity and reputation" />
-        <Feature icon={BarChart3} title="Transparent Metrics" detail="Real performance data" />
-        <Feature icon={LockKeyhole} title="Secure Payments" detail="Powered by BNB Chain and x402" />
+        <Feature icon={ShieldCheck} title="On-chain Identity" detail="ERC-8004 registry proof" />
+        <Feature icon={BarChart3} title="Source-backed Signals" detail="No invented trust metrics" />
+        <Feature icon={SearchCheck} title="Live Auditions" detail="Task-specific proof before hire" />
       </div>
     </div>
     <HeroVisual />
@@ -23,7 +23,7 @@ function Feature({ icon: Icon, title, detail }: { icon: typeof ShieldCheck; titl
 
 function HeroVisual() {
   return <div className="hero-visual" aria-label="BNB Chain agent capabilities">
-    <div className="visual-aurora" /><div className="speech-card">Real Agents.<br />Real Value.<br />On-Chain.<i /></div>
+    <div className="visual-aurora" /><div className="speech-card">Discover.<br />Prove fit.<br />Then hire.<i /></div>
     <div className="small-cube cube-one"><CubeMark /></div><div className="small-cube cube-two"><CubeMark /></div><BNBCube />
     <FeatureTag kind="monitor" label="Monitor" /><FeatureTag kind="trade" label="Trade" /><FeatureTag kind="optimize" label="Optimize" /><FeatureTag kind="protect" label="Protect" />
   </div>;
