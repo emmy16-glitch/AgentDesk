@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         source: "8004scan",
         chainId: 56,
         provenance: {
-          api: "https://8004scan.io/api/v1/public",
+          api: result.sourceApi,
           registry: "ERC-8004",
           operationalClaim: "registry-listed only; endpoint reachability is not implied",
           checkedAt: result.checkedAt,
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       chainId: 56,
       requiredCategories: REQUIRED_CATEGORIES,
       provenance: {
-        api: "https://8004scan.io/api/v1/public",
+        api: result.sourceApis,
         registry: "ERC-8004",
         checkedAt: result.checkedAt,
         classification: "multi-category keyword evidence from indexed agent name/description/tags; semantic rank alone is never treated as category proof",
