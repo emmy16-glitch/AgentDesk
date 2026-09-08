@@ -216,10 +216,10 @@ test("two live auditions produce a transparent comparison instead of a trust sco
   await page.getByRole("button", { name: "Run live auditions (2)" }).click();
 
   await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
-  await expect(page.getByText("BEST FIT")).toBeVisible();
-  await expect(page.getByText("STRONG FIT")).toBeVisible();
-  await expect(page.getByText("840 ms")).toBeVisible();
-  await expect(page.getByText("0.01 BNB")).toBeVisible();
+  await expect(page.getByText("BEST FIT", { exact: true })).toBeVisible();
+  await expect(page.getByText("STRONG FIT", { exact: true })).toBeVisible();
+  await expect(page.getByText("840 ms", { exact: true })).toBeVisible();
+  await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
   await expect(page.getByText(/No global trust percentage is used/i)).toBeVisible();
   await expect(page.getByText("Trust Score", { exact: false })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
