@@ -10,8 +10,8 @@ polishes it with [OpenScreen](https://github.com/getopenscreen/openscreen)
   are recorded as-is and flagged in `demo/events.json` (`flowFailed`).
 - `finalize-project.mjs` — applies the visual treatment to the recorded
   `.openscreen` project using the real event timestamps/focus rectangles.
-- `.github/workflows/product-demo.yml` — runs the whole pipeline on a
+- `.github/workflows/record-demo.yml` — runs the whole pipeline on a
   GitHub runner (which has internet access to the deployment and the live
   agents) and commits `demo/AgentDesk-demo.mp4` back to the branch.
 
-Trigger: `gh workflow run product-demo.yml --ref <branch>`
+Trigger: `gh workflow run record-demo.yml --ref <branch>`
