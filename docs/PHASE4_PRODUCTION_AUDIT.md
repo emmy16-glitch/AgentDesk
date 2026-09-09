@@ -1,5 +1,9 @@
 # Phase 4 Production Hardening Audit
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
 This audit records what the production-hardening slice proves and what it deliberately does not prove.
 
 ## Added proof surfaces
@@ -25,11 +29,18 @@ This audit records what the production-hardening slice proves and what it delibe
 - installable web manifest;
 - CI concurrency + least-privilege contents permission.
 
+## Public production deployment
+
+AgentDesk is publicly deployed at:
+
+https://agentdesk-bnb-eight.vercel.app/
+
+The live deployment has been used for the judge/demo flow and production browser recording. The public URL is now part of the submission documentation rather than a pending post-build task.
+
 ## Not claimed by this phase
 
 - This does not close Phase 3 issue #5.
 - This does not prove an external paid job has already completed.
-- This does not replace the deferred equal-depth pass for all four task categories.
 - This does not make liveness/readiness a proxy for an individual agent's quality or reachability.
 
-The final production deployment URL and one genuine completed ERC-8183 job should be added to the submission evidence once available.
+One genuine completed external ERC-8183 job should only be added to the evidence set when that job actually exists and can be independently inspected.
