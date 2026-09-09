@@ -18,7 +18,19 @@ The Brain is **not** an ERC-8004 seller and is **not** proof. It explains eviden
 - `schema/` → structured output contract
 - `skills/` → four category-specific reasoning skills
 
-Camber Context Mirror requires a real Camber agent and authenticated Camber CLI/MCP session. AgentDesk cannot create that account-side resource from an unauthenticated deployment.
+Camber Context Mirror requires a real Camber agent and authenticated Camber CLI/MCP session. AgentDesk cannot truthfully create or claim that account-side resource from an unauthenticated deployment.
+
+## Configure/sync an existing Camber agent
+
+After creating `AgentDesk Brain` once in the Camber web app with alias `agentdesk-brain`, configure local credentials and run:
+
+```bash
+export CAMBER_API_KEY=<your-camber-api-token>
+export CAMBER_BRAIN_AGENT_TAG=@<owner>.agentdesk-brain
+npm run camber:brain:configure
+```
+
+The helper updates the agent instructions, pulls its current Context Mirror, overlays this source-controlled bundle, then pushes the result as the next stable Camber agent version. The current Camber CLI requires authenticated account access for this step.
 
 ## Runtime configuration
 
@@ -30,6 +42,10 @@ CAMBER_BRAIN_AGENT_TAG=@<owner>.agentdesk-brain
 CAMBER_API_KEY=<server-only token>
 CAMBER_CLI_PATH=camber
 ```
+
+The current runtime adapter invokes the Camber CLI. Therefore the host must actually provide the `camber` executable; setting an environment variable alone does not install the CLI. A normal serverless/Vercel runtime should leave Camber disabled unless that executable is deliberately provided. The category-depth product remains fully functional through AgentDesk's deterministic evidence engine when Camber is unavailable.
+
+Camber also exposes a remote MCP service for connected OAuth-capable MCP clients. AgentDesk does not silently substitute that interactive OAuth connection for a server-side credential because doing so would make deployment/authentication claims we cannot verify.
 
 If Camber is not configured or is temporarily unavailable, AgentDesk falls back to its deterministic evidence engine and labels the fallback explicitly. Raw verification states are unchanged either way.
 
