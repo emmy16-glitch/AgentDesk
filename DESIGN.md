@@ -3,33 +3,33 @@ version: beta
 name: "AgentDesk"
 description: "A task-first BNB Chain marketplace where source-backed agents prove fit before hiring."
 colors:
-  background: "#03080D"
-  surface: "#09121B"
-  card: "#0A131C"
-  primary: "#F2BD3E"
-  success: "#0ECB9D"
-  text: "#F7F8FB"
-  muted: "#7E8A9A"
+  background: "#070809"
+  surface: "rgba(16, 18, 20, 0.78)"
+  card: "rgba(20, 22, 25, 0.68)"
+  primary: "#F3BA2F"
+  success: "#5BD78B"
+  text: "#F5F5F2"
+  muted: "#74777D"
 typography:
   sans:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Geist, Inter, ui-sans-serif, system-ui, sans-serif"
   display:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Geist, Inter, ui-sans-serif, system-ui, sans-serif"
 rounded:
   DEFAULT: "0.625rem"
   control: "0.5rem"
   pill: "999px"
 spacing:
-  page-max: "77.625rem"
+  page-max: "73.75rem"
   column-gap: "1.125rem"
-  card-padding: "1rem"
+  card-padding: "2rem"
 components:
   marketplace-card:
-    backgroundColor: "#0A131C"
-    rounded: "0.625rem"
+    backgroundColor: "rgba(20, 22, 25, 0.68)"
+    rounded: "1rem"
   dashboard-panel:
-    backgroundColor: "#09121B"
-    rounded: "0.625rem"
+    backgroundColor: "rgba(16, 18, 20, 0.78)"
+    rounded: "1rem"
   primary-button:
     backgroundColor: "#F2BD3E"
   status-indicator:
@@ -44,7 +44,7 @@ components:
 
 ## Creative north star
 
-A compact, exchange-quality BNB interface in a near-black control room. BNB gold is reserved for primary decisions and the illuminated agent cube. The visual language should feel operational rather than speculative.
+A continuous six-step AgentDesk experience in a dark cinematic BNB environment. Soft glass and matte-metal surfaces support the task; the supplied environmental BNB artwork is the sole expressive visual. BNB gold is reserved for the primary decision, the active step, and small orientation details.
 
 The product thesis is defined in `HACKATHON_LOCK.md`:
 
@@ -58,9 +58,9 @@ The design system must support that thesis. It must never make a decorative scor
 - **Primary job:** describe/select a task, discover relevant agents, inspect current evidence, audition candidates, compare, then hire the chosen agent through a real commerce path.
 - **Locale:** English (`en`).
 - **Usage scene:** desktop and mobile decision-making; advanced Web3 protocol detail is available but is not a prerequisite for using the marketplace.
-- **Memorable signature:** the glowing BNB cube and monitor/trade/optimize/protect markers.
-- **Restraint:** quiet dark panels, thin borders, sparse gold glow, no generic neon-crypto treatment.
-- **Runtime token owner:** Tailwind v4 `@theme` in `app/globals.css`; `app/responsive-hardening.css` contains later responsive corrections.
+- **Memorable signature:** one persistent, blended BNB environmental artwork behind a calm, task-first workflow.
+- **Restraint:** spacious dark glass, thin low-contrast borders, sparse gold, and no dashboard density or generic neon-crypto treatment.
+- **Runtime token owner:** `app/agentdesk-flow.css` owns the `--ad-*` workflow tokens. `app/globals.css` adapts the Geist body font and Tailwind theme for the rest of the application.
 
 ## Evidence-first visual hierarchy
 
@@ -94,15 +94,14 @@ Use warning/error colors for unavailable, timeout, unsupported, or failed checks
 
 ## Typography
 
-Use a dense neutral system stack. Hero display uses heavy weight and tight tracking. Panel headings and controls use 600–700 weight. Evidence labels and metadata can be smaller, but must remain readable. Real registry names are unbounded user/external content: they must wrap or truncate accessibly rather than break layout.
+Use Geist Sans throughout. Hero display is 650–700 with tight tracking and is used selectively; headings, controls, and evidence retain a calm 500–650 weight range. Real registry names are unbounded user/external content: they must wrap or truncate accessibly rather than break layout.
 
 ## Layout
 
-- Canonical desktop shell: centered, max width approximately 1242px.
-- Current discovery view may retain the marketplace + utility-sidebar structure during Phase 1.
-- The product evolves toward a task-first surface in Phase 2/3; do not protect the old four-card grid at the expense of the audition flow.
-- At narrower widths the sidebar stacks and discovery/compare surfaces reduce columns without horizontal page overflow.
-- Category/task controls must remain horizontally scrollable/reachable on mobile.
+- Canonical desktop shell: centered, max width 1180px, with 32px desktop and 18px mobile gutters.
+- `AgentDeskShell` owns the navigation, environmental artwork, progress stepper, and base responsive behavior. Workflow content transitions in place without swapping the environment.
+- The primary flow is Ask → Details → Test → Best match → Check → Hire. The old utility sidebar and registry grid are not part of this guided surface.
+- At narrow widths, the shell uses one column, an abbreviated “Step n of 6” indicator, full-width actions, and a darker/right-shifted environmental object. No horizontal page overflow is allowed.
 
 ## Components
 
@@ -110,9 +109,9 @@ Use a dense neutral system stack. Hero display uses heavy weight and tight track
 
 Primary message:
 
-> **Don't trust the profile. Audition the agent.**
+> **What do you want an agent to do?**
 
-The hero should explain the user benefit before protocol names. ERC-8004, ERC-8183, A2A, MCP and x402 belong in evidence/developer detail unless directly relevant to the current decision.
+The opening task surface explains the benefit before protocol names. ERC-8004, ERC-8183, A2A, MCP and x402 belong in evidence/developer detail unless directly relevant to the current decision.
 
 ### Task entry
 
@@ -160,7 +159,7 @@ The primary hire state must eventually represent a real Agent Studio / ERC-8183 
 
 ## Forms and overlays
 
-Search, task forms and assistant fields use dark bordered inputs with visible focus states. Wallet selection is app-owned. Async operations must keep the initiating control and status understandable: waiting, timeout, failure and completion are distinct states.
+Task forms use dark bordered inputs with visible focus states. Wallet selection is app-owned and appears only at the Hire stage. Async operations must keep the initiating control and status understandable: waiting, timeout, failure and completion are distinct states.
 
 ## Iconography
 

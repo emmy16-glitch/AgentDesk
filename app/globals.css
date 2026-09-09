@@ -9,7 +9,7 @@
   --color-success: #0ecb9d;
   --color-text-secondary: #b4bdca;
   --color-text-muted: #7e8a9a;
-  --font-sans: Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), Geist, ui-sans-serif, system-ui, sans-serif;
 }
 
 :root { color-scheme: dark; scrollbar-color: #34404d #050a0e; scrollbar-width: thin; }
@@ -19,7 +19,7 @@
 *::-webkit-scrollbar-thumb { background: #34404d; border: 3px solid #050a0e; border-radius: 999px; }
 *::-webkit-scrollbar-thumb:hover { background: #596879; }
 html { background: #03080d; }
-body { margin: 0; background: radial-gradient(ellipse 42% 20% at 46% 23%, rgba(234,174,30,.05), transparent 75%), #03080d; color: #f7f8fb; font-family: Arial, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: radial-gradient(ellipse 42% 20% at 46% 23%, rgba(234,174,30,.05), transparent 75%), #03080d; color: #f7f8fb; font-family: var(--font-geist-sans), Geist, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }

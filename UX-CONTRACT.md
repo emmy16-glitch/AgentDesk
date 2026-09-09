@@ -4,7 +4,7 @@
 
 - Audience: BNB Chain users who need an agent for a specific job, not users browsing generic profiles for entertainment.
 - Primary product question: **Which live BNB agent is the best fit for this exact task, right now?**
-- Primary flow: `describe task → discover → audition/quote → compare → hire → receive result`.
+- Primary flow: `Ask → Details → Test → Best match → Check → Hire`.
 - Product thesis and truthfulness rules are locked in `HACKATHON_LOCK.md`.
 - Active locale: English (`en`). Accessibility target: WCAG 2.2 AA.
 
@@ -40,9 +40,9 @@ The UI must never visually or verbally upgrade one state into the next without e
 | Camber assistant | `lib/camber.ts` + `lib/camber-agent-config.ts` | Separate assistant integration; not marketplace identity proof |
 | Legacy activation contract | `contracts/AgentTrustMarketplace.sol` | Prototype/testnet infrastructure only; not a completed agent job |
 
-## Current task-first UX
+## Current guided UX
 
-The homepage now leads with:
+The homepage leads with:
 
 > **What do you want an agent to do?**
 
@@ -53,9 +53,9 @@ The four required task families are first-class controls:
 3. Grid Trading
 4. Rebalancing
 
-Each family has its own required input contract. AgentDesk then shows source-qualified candidates discovered from the ERC-8004 evidence layer and lets the user select up to four for the same audition.
+Each family has its own required input contract. AgentDesk selects up to four source-qualified candidates from the ERC-8004 evidence layer and auditions them on the same bounded task. Candidate identities and raw evidence remain available only after real results are returned.
 
-The older registry-card browser remains below the task-first flow as an evidence-inspection surface, not as the primary product journey.
+The shared `AgentDeskShell` keeps navigation, the single supplied environmental background, and progress state stable across the entire flow. Wallet connection is not available in navigation or before the Hire step.
 
 ## Audition result contract
 

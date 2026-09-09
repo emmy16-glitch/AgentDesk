@@ -211,17 +211,18 @@ async function mockBrain(page: Page) {
 }
 
 async function openYieldCandidates(page: Page) {
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByRole("heading", { name: "Choose who should audition" })).toBeVisible();
-  await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
-  await expect(page.getByText("Mock Yield Runner")).toBeVisible();
-  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+  await page.getByLabel("What do you want an agent to do?").fill("Help me find a yield option for 500 USDC");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await expect(page.getByRole("heading", { name: "Tell us a little more." })).toBeVisible();
 }
 
 async function runYieldAudition(page: Page) {
   await openYieldCandidates(page);
-  await page.getByRole("button", { name: /Run auditions/i }).click();
-  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByRole("heading", { name: "We’re testing agents for you." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /See results/i })).toBeEnabled();
+  await page.getByRole("button", { name: /See results/i }).click();
+  await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
 }
 
 async function assertNoHorizontalOverflow(page: Page) {
@@ -240,12 +241,11 @@ test("guided marketplace is focused and legacy homepage clutter is gone", async 
   const response = await page.goto("/", { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: /don't trust the profile/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /What should the agent do/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Health monitor/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Yield optimiser/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Grid planner/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Rebalancer/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /What do you want an agent to do/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Protect" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Earn" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Trade" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Balance" })).toBeVisible();
   await expect(page.getByText("Prototype Wallet", { exact: true })).toHaveCount(0);
   await expect(page.getByText("HealthGuard AI", { exact: true })).toHaveCount(0);
   await expect(page.getByText("AI Assistant", { exact: true })).toHaveCount(0);
@@ -261,17 +261,25 @@ test("guided marketplace is focused and legacy homepage clutter is gone", async 
 
 test("task categories guide users to only matching registry candidates", async ({ page }) => {
   await mockDiscovery(page);
+  await mockAuditions(page);
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await page.getByRole("button", { name: /Rebalancer/i }).click();
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
+  await page.getByRole("button", { name: "Earn" }).click();
+  await page.getByLabel("What do you want an agent to do?").fill("Find an option for 500 USDC");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByRole("button", { name: /See results/i })).toBeEnabled();
+  await page.getByRole("button", { name: /See results/i }).click();
   await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
   await expect(page.getByText("Mock Venus Monitor")).toHaveCount(0);
 
-  await page.getByRole("button", { name: /Edit task/i }).click();
-  await page.getByRole("button", { name: /Grid planner/i }).click();
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText(/No source-qualified agent currently matches this category/i)).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Trade" }).click();
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText(/No source-qualified agents match this task right now/i)).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
@@ -281,13 +289,10 @@ test("live audition remains blind and shows one clear best result", async ({ pag
   await page.goto("/", { waitUntil: "networkidle" });
   await runYieldAudition(page);
 
-  await expect(page.getByText("Candidate A", { exact: true })).toBeVisible();
-  await expect(page.getByText("BEST FIT", { exact: true })).toBeVisible();
-  await expect(page.getByText("840 ms", { exact: true })).toBeVisible();
+  await expect(page.getByText("Mock DeFi Matrix", { exact: true })).toBeVisible();
   await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
-  await expect(page.getByText("Mock DeFi Matrix", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Trust Score", { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Only observable audition evidence is compared/i)).toBeVisible();
+  await expect(page.getByText(/The agent that performed best for your task/i)).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
@@ -298,8 +303,7 @@ test("verification and Camber Brain stay behind an explicit verify action", asyn
   await page.goto("/", { waitUntil: "networkidle" });
   await runYieldAudition(page);
 
-  await expect(page.getByLabel("Yield Optimisation depth analysis")).toHaveCount(0);
-  await page.getByRole("button", { name: "Verify result" }).click();
+  await page.getByRole("button", { name: /Check answer/i }).first().click();
   const depth = page.getByLabel("Yield Optimisation depth analysis").first();
   await expect(depth).toBeVisible();
   await depth.getByRole("button", { name: /Verify with live checks \+ Brain/i }).click();
@@ -321,8 +325,10 @@ test("discovery failure stays truthful and never invents agents", async ({ page 
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText(/Live agent discovery is unavailable: upstream unavailable/i)).toBeVisible();
+  await page.getByLabel("What do you want an agent to do?").fill("Help me find yield");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText(/Live agent discovery is unavailable right now/i)).toBeVisible();
   await expect(page.getByText("GridMaster")).toHaveCount(0);
   await expect(page.getByText("RebalanceGuard")).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
