@@ -102,7 +102,7 @@ function pairFromText(value: string): [string, string] | null {
   return known.length >= 2 ? [known[0], known[1]] : null;
 }
 
-function rawRecord(check: IndependentCheckItem | undefined): Record<string, unknown> | null {
+function rawRecord(check: IndependentCheckItem | null | undefined): Record<string, unknown> | null {
   return check?.raw && typeof check.raw === "object" && !Array.isArray(check.raw)
     ? check.raw as Record<string, unknown>
     : null;
