@@ -2,6 +2,7 @@ import { chatWithCamber } from "@/lib/camber";
 import type { BrainAnalysis, BrainAnalysisInput, BrainDecision } from "@/lib/brain/types";
 
 const DECISIONS = new Set<BrainDecision>(["LEADING EVIDENCE", "MIXED", "INSUFFICIENT", "CONFLICT"]);
+const DEFAULT_AGENT_TAG = "@emmanuel.Agentdesk-brain";
 
 function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -80,9 +81,21 @@ function promptFor(input: BrainAnalysisInput): string {
   ].join("\n\n");
 }
 
+export function getCamberBrainAgentTag(): string {
+  return process.env.CAMBER_BRAIN_AGENT_TAG?.trim() || DEFAULT_AGENT_TAG;
+}
+
+export function camberBrainEnabled(): boolean {
+  const explicit = process.env.CAMBER_BRAIN_ENABLED?.trim().toLowerCase();
+  if (explicit === "false") return false;
+  if (explicit && explicit !== "true") return false;
+
+  const token = process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim();
+  return Boolean(token && getCamberBrainAgentTag());
+}
+
 export async function analyseWithCamber(input: BrainAnalysisInput): Promise<BrainAnalysis> {
-  const agentTag = process.env.CAMBER_BRAIN_AGENT_TAG?.trim();
-  if (!agentTag) throw new Error("CAMBER_BRAIN_AGENT_TAG is not configured");
+  const agentTag = getCamberBrainAgentTag();
 
   const response = await chatWithCamber({
     agentId: "agentdesk-brain",
@@ -115,9 +128,4 @@ export async function analyseWithCamber(input: BrainAnalysisInput): Promise<Brai
     conversationId: response.conversationId,
     model: process.env.CAMBER_BRAIN_MODEL?.trim() || undefined,
   };
-}
-
-export function camberBrainEnabled(): boolean {
-  return process.env.CAMBER_BRAIN_ENABLED?.trim().toLowerCase() === "true"
-    && Boolean(process.env.CAMBER_BRAIN_AGENT_TAG?.trim());
 }
