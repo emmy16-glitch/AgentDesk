@@ -1,5 +1,8 @@
 # Phase 1 — Real BSC candidate audit
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 Snapshot date: 2026-09-08
 
 Purpose: record manually verified candidate examples while the live discovery pipeline is being built. This file is an audit notebook, **not** a hard-coded production catalogue. The marketplace must continue to source candidates dynamically.
