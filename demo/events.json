@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-09T21:53:11.845Z",
+  "recordedAt": "2026-09-09T21:59:42.521Z",
   "appUrl": "https://agentdesk-bnb-eight.vercel.app/",
   "screen": {
     "width": 1920,
@@ -19,11 +19,11 @@
     },
     {
       "name": "prompt_typed",
-      "tMs": 8316
+      "tMs": 8347
     },
     {
       "name": "click_find_test",
-      "tMs": 11780,
+      "tMs": 11930,
       "box": {
         "x": 1299,
         "y": 815,
@@ -33,7 +33,7 @@
     },
     {
       "name": "details_visible",
-      "tMs": 13311,
+      "tMs": 13463,
       "box": {
         "x": 535,
         "y": 548,
@@ -43,7 +43,7 @@
     },
     {
       "name": "risk_low_selected",
-      "tMs": 18480,
+      "tMs": 18629,
       "box": {
         "x": 569,
         "y": 752,
@@ -53,7 +53,7 @@
     },
     {
       "name": "click_find_live",
-      "tMs": 22113,
+      "tMs": 22262,
       "box": {
         "x": 1186,
         "y": 828,
@@ -63,17 +63,49 @@
     },
     {
       "name": "test_visible",
-      "tMs": 22734
+      "tMs": 22874
     },
     {
       "name": "flow_failed",
-      "tMs": 23977,
+      "tMs": 24117,
+      "selector": ".ad-stream-failure",
+      "message": "We found registry matches, but none exposed a reachable live A2A service right now."
+    },
+    {
+      "name": "click_retry_1",
+      "tMs": 29445,
+      "box": {
+        "x": 946,
+        "y": 723,
+        "width": 176,
+        "height": 52
+      }
+    },
+    {
+      "name": "flow_failed_retry_1",
+      "tMs": 30471,
+      "selector": ".ad-stream-failure",
+      "message": "We found registry matches, but none exposed a reachable live A2A service right now."
+    },
+    {
+      "name": "click_retry_2",
+      "tMs": 35728,
+      "box": {
+        "x": 946,
+        "y": 722,
+        "width": 176,
+        "height": 52
+      }
+    },
+    {
+      "name": "flow_failed_retry_2",
+      "tMs": 36759,
       "selector": ".ad-stream-failure",
       "message": "We found registry matches, but none exposed a reachable live A2A service right now."
     }
   ],
   "flowFailed": true,
-  "durationMs": 29320,
-  "trimmedFrom": "/home/runner/work/AgentDesk/AgentDesk/demo/raw/page@559feeb5672636fd23ec08a0f9032534.webm",
-  "trimStartSeconds": 3.195
+  "durationMs": 41160,
+  "trimmedFrom": "/home/runner/work/AgentDesk/AgentDesk/demo/raw/page@ad7a46148f2f7c42f349f65a476cd320.webm",
+  "trimStartSeconds": 2.822
 }
