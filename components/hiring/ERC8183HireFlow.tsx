@@ -4,9 +4,12 @@ import { useMemo, useState } from "react";
 import { ExternalLink, Loader2, LockKeyhole, ShieldCheck, WalletCards } from "lucide-react";
 import { useAccount, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { encodeFunctionData, formatUnits, getAddress, isAddress, type Address, type Hex } from "viem";
+import CapabilityPermissions from "@/components/hiring/CapabilityPermissions";
 import JobEvidencePanel from "@/components/hiring/JobEvidencePanel";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
+import { defaultHireCapabilityPolicy, hashHireCapabilityPolicy } from "@/lib/capabilities/policy";
+import type { HireCapabilityPolicy } from "@/lib/capabilities/types";
 import { evaluatePriceLimit } from "@/lib/guardrails/evaluate";
 import {
   EMPTY_BYTES,
@@ -64,6 +67,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [quote, setQuote] = useState<Erc8183NegotiatedQuote | null>(null);
   const [job, setJob] = useState<Erc8183JobEvidence | null>(null);
+  const [capabilityPolicy, setCapabilityPolicy] = useState<HireCapabilityPolicy>(() =>
+    defaultHireCapabilityPolicy(result.task.guardrails?.actionPolicy ?? "approval-required"),
+  );
   const receipt = useMemo(() => buildAuditionReceipt(result), [result]);
   const commerceChainId: SupportedCommerceChainId = quote?.chainId ?? job?.chainId ?? 56;
   const publicClient = usePublicClient({ chainId: commerceChainId });
@@ -72,6 +78,15 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
   const quotedDisplay = quote
     ? `${formatUnits(BigInt(quote.priceBaseUnits), 18)} ${quote.currency}`
     : null;
+
+  function updateCapabilityPolicy(next: HireCapabilityPolicy) {
+    if (job) return;
+    setCapabilityPolicy(next);
+    if (quote) {
+      setQuote(null);
+      setError("Permissions changed. Get fresh provider-signed terms before funding.");
+    }
+  }
 
   async function negotiate() {
     if (result.ruleEvaluation.hardFailure) {
@@ -83,6 +98,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     setQuote(null);
     setJob(null);
     try {
+      const expectedCapabilityHash = hashHireCapabilityPolicy(capabilityPolicy);
       const response = await fetch("/api/hiring/negotiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,6 +106,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
           tokenId: result.candidate.tokenId,
           task: result.task,
           auditionReceiptHash: receipt.receiptHash,
+          capabilityPolicy,
         }),
       });
       const body = await response.json() as NegotiateResponse;
@@ -99,6 +116,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       }
       if (!signedTaskContainsReceipt(body.quote.envelope, receipt.receiptHash)) {
         throw new Error("Provider-signed task does not contain this audition receipt");
+      }
+      if (!body.quote.capabilityPolicyHash || body.quote.capabilityPolicyHash.toLowerCase() !== expectedCapabilityHash.toLowerCase()) {
+        throw new Error("Provider-signed terms are not bound to the permissions you selected");
       }
       setQuote(body.quote);
     } catch (cause) {
@@ -166,6 +186,12 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       return;
     }
 
+    const currentCapabilityHash = hashHireCapabilityPolicy(capabilityPolicy);
+    if (!quote.capabilityPolicyHash || quote.capabilityPolicyHash.toLowerCase() !== currentCapabilityHash.toLowerCase()) {
+      setError("Your permissions changed after negotiation. Get fresh signed terms before funding.");
+      return;
+    }
+
     if (chainId !== quote.chainId) {
       setFunding(true);
       setError(null);
@@ -212,6 +238,9 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const description = buildCanonicalJobDescription(quote.envelope);
       if (!description.toLowerCase().includes(receipt.receiptHash.toLowerCase())) {
         throw new Error("Canonical provider-signed job description is not linked to this audition receipt");
+      }
+      if (!description.toLowerCase().includes(currentCapabilityHash.toLowerCase())) {
+        throw new Error("Canonical provider-signed job description is not linked to your capability permissions");
       }
 
       const balance = await publicClient.readContract({
@@ -286,6 +315,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         jobId: jobId.toString(),
         chainId: quote.chainId,
         receiptHash: receipt.receiptHash,
+        capabilityPolicyHash: currentCapabilityHash,
         createTx,
         registerTx,
         budgetTx,
@@ -317,10 +347,16 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       <span className="receipt-chip" title={receipt.receiptHash}>receipt {short(receipt.receiptHash)}</span>
     </div>
 
+    <CapabilityPermissions
+      value={capabilityPolicy}
+      onChange={updateCapabilityPolicy}
+      locked={Boolean(job)}
+    />
+
     {!quote && !job ? <>
-      <p>Ask the candidate&apos;s ERC-8004-advertised commerce/A2A service for fresh provider-signed terms. The audition receipt is inserted before signing so the paid job can be linked back to this exact audition.</p>
+      <p>Get fresh provider-signed terms for this exact task and the permissions above. Enabling a capability does not itself spend money or execute an action.</p>
       <button type="button" className="hire-action" onClick={negotiate} disabled={negotiating || result.status !== "completed"}>
-        {negotiating ? <><Loader2 className="spin" size={15} /> Negotiating & verifying…</> : <><ShieldCheck size={15} /> Get verified ERC-8183 terms</>}
+        {negotiating ? <><Loader2 className="spin" size={15} /> Negotiating &amp; verifying…</> : <><ShieldCheck size={15} /> Get verified ERC-8183 terms</>}
       </button>
     </> : null}
 
@@ -330,19 +366,21 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       <div className="hire-proof-row"><span>Payment token</span><b title={quote.paymentToken}>{short(quote.paymentToken)}</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={quote.provider}>{short(quote.provider)}</b></div>
       <div className="hire-proof-row"><span>Provider signature</span><b>{quote.signatureMethod} · block {quote.signatureCheckedAtBlock}</b></div>
+      <div className="hire-proof-row"><span>Permissions</span><b title={quote.capabilityPolicyHash ?? undefined}>{quote.capabilityPolicyHash ? short(quote.capabilityPolicyHash) : "not bound"}</b></div>
       <div className="hire-proof-row"><span>Negotiation hash</span><b title={quote.negotiationHash}>{short(quote.negotiationHash)}</b></div>
       <div className="hire-proof-row"><span>Expires</span><b>{quote.quoteExpiresAt ? new Date(quote.quoteExpiresAt).toLocaleTimeString() : "not stated"}</b></div>
-      <p className="hire-boundary">Provider signature, BNB chain, Commerce contract, live payment token and audition receipt have been checked. No payment has moved yet.</p>
+      <p className="hire-boundary">Provider signature, BNB chain, Commerce contract, live payment token, audition receipt and capability policy have been checked. No payment has moved yet.</p>
       {!isConnected ? <p className="hire-warning"><WalletCards size={15} /> Connect your wallet in the wallet panel before funding.</p> : null}
       <button type="button" className="hire-action primary" onClick={createAndFundJob} disabled={funding || !isConnected}>
-        {funding ? <><Loader2 className="spin" size={15} /> Preparing ERC-8183 job…</> : <>Create & fund signed ERC-8183 job</>}
+        {funding ? <><Loader2 className="spin" size={15} /> Preparing ERC-8183 job…</> : <>Create &amp; fund signed ERC-8183 job</>}
       </button>
       <button type="button" className="hire-link-button" onClick={negotiate} disabled={negotiating || funding}>Refresh signed quote</button>
     </div> : null}
 
     {job && quote ? <div className="hire-job">
-      <div className="hire-job-banner"><ShieldCheck size={17} /><div><strong>Escrow funded</strong><span>ERC-8183 job #{job.jobId} contains the exact provider-signed terms and audition receipt commitment.</span></div></div>
+      <div className="hire-job-banner"><ShieldCheck size={17} /><div><strong>Escrow funded</strong><span>ERC-8183 job #{job.jobId} contains the exact provider-signed terms, audition receipt and capability commitment.</span></div></div>
       <div className="hire-proof-row"><span>Audition receipt</span><b title={job.receiptHash}>{short(job.receiptHash)}</b></div>
+      {job.capabilityPolicyHash ? <div className="hire-proof-row"><span>Permissions</span><b title={job.capabilityPolicyHash}>{short(job.capabilityPolicyHash)}</b></div> : null}
       <div className="hire-proof-row"><span>Budget</span><b>{formatUnits(BigInt(job.priceBaseUnits), 18)} $U</b></div>
       <div className="hire-proof-row"><span>Provider</span><b title={job.provider}>{short(job.provider)}</b></div>
       <div className="hire-proof-row"><span>Provider trigger</span><b>{job.providerNotification.status}</b></div>
