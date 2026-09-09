@@ -303,7 +303,7 @@ test("category depth keeps scenario capital free and Brain cannot manufacture pr
 
   const depth = page.getByLabel("Yield Optimisation depth analysis").first();
   await expect(depth.getByText("MIXED EVIDENCE", { exact: true })).toBeVisible();
-  await expect(depth.getByText(/Scenario capital only/i)).toBeVisible();
+  await expect(depth.getByText("Scenario capital only — pool context can be checked without depositing funds", { exact: true })).toBeVisible();
   await expect(depth.getByText("AgentDesk Brain · powered by Camber", { exact: true })).toBeVisible();
   await expect(depth.getByText("MIXED", { exact: true })).toBeVisible();
   await expect(depth.getByText(/APY remains unverified/i)).toBeVisible();
