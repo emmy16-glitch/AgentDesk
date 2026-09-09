@@ -1,0 +1,172 @@
+.category-depth {
+  margin-top: 16px;
+  border: 1px solid #243746;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(10, 24, 34, .96), rgba(7, 17, 25, .96));
+  overflow: hidden;
+}
+
+.category-depth-topline,
+.brain-analysis-heading,
+.category-depth-check-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.category-depth-topline { padding: 14px; }
+.category-depth-title,
+.brain-analysis-heading > div,
+.category-depth-preflight,
+.category-depth-boundary,
+.brain-fallback {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.category-depth-title span,
+.brain-analysis-heading span { display: grid; gap: 2px; }
+.category-depth-title strong,
+.brain-analysis-heading strong { color: #f7fafc; font-size: 13px; }
+.category-depth-title small,
+.brain-analysis-heading small { color: #8ea1b1; font-size: 11px; line-height: 1.45; }
+
+.category-depth-run,
+.category-depth-refresh {
+  border: 1px solid #725a20;
+  border-radius: 10px;
+  background: rgba(242, 189, 62, .1);
+  color: #f2bd3e;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.category-depth-run:disabled,
+.category-depth-refresh:disabled { opacity: .55; cursor: wait; }
+
+.category-depth-preflight {
+  margin: 0 14px 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0c1c27;
+  color: #a8b5c0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.category-depth-verdict {
+  margin: 0 14px 12px;
+  padding: 11px 12px;
+  border: 1px solid #294457;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: #0d1d28;
+}
+.category-depth-verdict > div { display: grid; gap: 3px; }
+.category-depth-verdict strong { font-size: 12px; color: #d7eefc; }
+.category-depth-verdict small { color: #91a4b2; font-size: 10.5px; line-height: 1.45; }
+.depth-conflict-with-live-context { border-color: #7e3b3b; background: rgba(100, 31, 31, .12); }
+.depth-supported-by-live-context { border-color: #265d4c; background: rgba(24, 91, 70, .12); }
+.depth-mixed-evidence { border-color: #725a20; background: rgba(122, 92, 21, .1); }
+
+.category-depth-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+.category-depth-stats > div {
+  border: 1px solid #213441;
+  border-radius: 10px;
+  background: #091720;
+  padding: 9px;
+  display: grid;
+  gap: 3px;
+}
+.category-depth-stats strong { color: #f3f7f9; font-size: 13px; }
+.category-depth-stats span { color: #7f95a5; font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; }
+
+.category-depth-checks {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+.category-depth-check {
+  border: 1px solid #213441;
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: #091720;
+  padding: 10px 11px;
+}
+.category-depth-check.check-verified { border-left-color: #36b37e; }
+.category-depth-check.check-conflict { border-left-color: #e66c6c; }
+.category-depth-check.check-not-verifiable { border-left-color: #d7a936; }
+.category-depth-check.check-error { border-left-color: #9e6be8; }
+.category-depth-check-head strong { font-size: 11px; color: #e7edf1; }
+.category-depth-check-head span { font-size: 9px; text-transform: uppercase; letter-spacing: .07em; color: #8ea0ad; }
+.category-depth-check p { margin: 6px 0; color: #aebbc4; font-size: 10.5px; line-height: 1.5; }
+.category-depth-check small { color: #6f8493; font-size: 9.5px; }
+.category-depth-check a { color: #e2b94d; display: inline-flex; align-items: center; gap: 3px; }
+
+.category-depth-boundary {
+  margin: 0 14px 14px;
+  padding: 9px 10px;
+  border: 1px dashed #314451;
+  border-radius: 10px;
+  color: #8194a2;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.brain-analysis {
+  margin: 0 14px 14px;
+  border: 1px solid #334b5c;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(18, 32, 42, .98), rgba(10, 20, 28, .98));
+  padding: 13px;
+}
+.brain-analysis-heading { margin-bottom: 10px; }
+.brain-proof-label {
+  color: #c69b34 !important;
+  border: 1px solid #665322;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 8px !important;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+.brain-analysis h5 { margin: 0 0 6px; color: #f4f7f9; font-size: 13px; line-height: 1.4; }
+.brain-summary { margin: 0 0 12px; color: #aebbc4; font-size: 10.5px; line-height: 1.55; }
+.brain-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.brain-list { border: 1px solid #243744; border-radius: 10px; padding: 9px; background: rgba(5, 15, 22, .52); }
+.brain-list > strong { display: block; color: #dbe5eb; font-size: 10px; margin-bottom: 5px; }
+.brain-list ul { margin: 0; padding-left: 16px; color: #98aab6; font-size: 9.8px; line-height: 1.48; }
+.brain-list p { margin: 0; color: #738795; font-size: 9.8px; line-height: 1.45; }
+.brain-list.danger { border-color: #693c3c; background: rgba(83, 31, 31, .12); }
+.brain-next-question { margin-top: 9px; padding: 9px 10px; border-radius: 10px; background: #0c1b25; }
+.brain-next-question strong { color: #e0bd58; font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; }
+.brain-next-question p { margin: 4px 0 0; color: #aab9c3; font-size: 10px; line-height: 1.45; }
+.brain-fallback { margin-top: 9px; color: #d2aa50; font-size: 9.5px; line-height: 1.45; }
+.brain-boundary { margin: 9px 0 0; color: #728795; font-size: 9.3px; line-height: 1.45; }
+.brain-boundary.system { padding-top: 7px; border-top: 1px solid #253743; }
+.brain-conflict { border-color: #734040; }
+.brain-leading-evidence { border-color: #2e5d4c; }
+.brain-mixed { border-color: #645327; }
+
+.category-depth-refresh { margin: 0 14px 14px; border-color: #2d4352; color: #9fb1bd; background: #0a1821; }
+
+@media (max-width: 700px) {
+  .category-depth-topline,
+  .brain-analysis-heading { align-items: stretch; flex-direction: column; }
+  .category-depth-run { width: 100%; justify-content: center; }
+  .category-depth-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brain-columns { grid-template-columns: 1fr; }
+  .brain-proof-label { width: fit-content; }
+}
