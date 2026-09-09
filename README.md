@@ -22,6 +22,7 @@ The hackathon product and architecture direction is locked in [`HACKATHON_LOCK.m
 ## Judge quick links
 
 - [`SUBMISSION.md`](./SUBMISSION.md) — judge-ready project description and proof map
+- [`docs/HACKATHON_CRITERIA_MAP.md`](./docs/HACKATHON_CRITERIA_MAP.md) — implementation mapped to the published main-track criteria
 - [`docs/FINAL_DEMO_RUNBOOK.md`](./docs/FINAL_DEMO_RUNBOOK.md) — 3–5 minute demo sequence
 - [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) — completed work vs the remaining authenticated/manual gates
 - [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) — dependency hardening and remaining advisory boundary
@@ -116,7 +117,7 @@ BSC_TESTNET_RPC_URL=       # only if a genuine quoted job targets BSC testnet
 CAMBER_API_KEY=            # server-only Camber CLI credential
 CAMBER_BRAIN_ENABLED=false # deterministic evidence engine works without Camber
 CAMBER_BRAIN_AGENT_TAG=    # e.g. @owner.agentdesk-brain
-CAMBER_CLI_PATH=camber     # optional path override
+CAMBER_CLI_PATH=           # optional; blank auto-checks ~/.camber/bin/camber then PATH
 ```
 
 Useful verification commands:
