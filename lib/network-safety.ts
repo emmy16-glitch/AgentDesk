@@ -45,6 +45,7 @@ export async function validatePublicHttpsUrl(input: string): Promise<
   | { ok: false; reason: string }
 > {
   if (!input || input.length > 2048) return { ok: false, reason: "URL is empty or too long" };
+  if (/[{}]/.test(input)) return { ok: false, reason: "Unresolved URL templates are blocked" };
 
   let url: URL;
   try {
@@ -57,7 +58,7 @@ export async function validatePublicHttpsUrl(input: string): Promise<
   if (url.username || url.password) return { ok: false, reason: "Credential-bearing URLs are blocked" };
   if (url.port && url.port !== "443") return { ok: false, reason: "Non-standard HTTPS ports are blocked" };
 
-  const hostname = url.hostname.toLowerCase();
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
