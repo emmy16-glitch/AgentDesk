@@ -87,7 +87,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
 
     {!verification ? <div className="category-depth-preflight">
       <SearchCheck size={15} />
-      <span>AgentDesk first reproduces supported BNB facts, then the Brain explains only the evidence that was actually found.</span>
+      <span>AgentDesk reproduces only facts it can independently check, then explains what remains uncertain.</span>
     </div> : null}
 
     {verification ? <>
@@ -115,7 +115,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
               <span>{check.status}</span>
             </div>
             <p>{check.summary}</p>
-            <small>{href ? <a href={href} target="_blank" rel="noreferrer">{check.source} <ExternalLink size={10} /></a> : check.source}</small>
+            <small>{href ? <a href={href} target="_blank" rel="noreferrer">Source <ExternalLink size={10} /></a> : check.source}</small>
           </article>;
         })}
       </div>
@@ -126,20 +126,22 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
     {analysis ? <section className={`brain-analysis ${decisionClass(analysis.decision)}`} aria-label="AgentDesk Brain analysis">
       <div className="brain-analysis-heading">
         <div><BrainCircuit size={17} /><span><strong>AgentDesk&apos;s take</strong><small>{analysis.decision}</small></span></div>
-        <span className="brain-proof-label">EXPLAINS PROOF · DOES NOT CREATE IT</span>
       </div>
       <h5>{analysis.headline}</h5>
       <p className="brain-summary">{analysis.summary}</p>
 
-      <div className="brain-columns">
-        <BrainList title="Verified facts" items={analysis.verifiedFacts} empty="No independently reproduced facts yet." />
-        <BrainList title="Unresolved claims" items={analysis.unresolvedClaims} empty="No unresolved claim was surfaced in this run." />
-        {analysis.conflicts.length ? <BrainList title="Conflicts" items={analysis.conflicts} empty="" danger /> : null}
-        <BrainList title="Watchouts" items={analysis.watchouts} empty="No additional category watchout was generated." />
-      </div>
+      {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question</strong><p>{analysis.nextQuestion}</p></div> : null}
 
-      {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question for this agent</strong><p>{analysis.nextQuestion}</p></div> : null}
-      <p className="brain-boundary">{analysis.boundary}</p>
+      <details className="brain-details">
+        <summary>Review reasoning details</summary>
+        <div className="brain-columns">
+          <BrainList title="Verified facts" items={analysis.verifiedFacts} empty="No independently reproduced facts yet." />
+          <BrainList title="Unresolved claims" items={analysis.unresolvedClaims} empty="No unresolved claim was surfaced in this run." />
+          {analysis.conflicts.length ? <BrainList title="Conflicts" items={analysis.conflicts} empty="" danger /> : null}
+          <BrainList title="Watchouts" items={analysis.watchouts} empty="No additional category watchout was generated." />
+        </div>
+        <p className="brain-boundary">{analysis.boundary}</p>
+      </details>
     </section> : null}
 
     {verification ? <button type="button" className="category-depth-refresh" onClick={analyse} disabled={checking}>
