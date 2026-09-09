@@ -8,7 +8,7 @@ import CapabilityPermissions from "@/components/hiring/CapabilityPermissions";
 import JobEvidencePanel from "@/components/hiring/JobEvidencePanel";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
-import { defaultHireCapabilityPolicy, hashHireCapabilityPolicy } from "@/lib/capabilities/policy";
+import { defaultHireCapabilityPolicy, hashHireCapabilityPolicy, permissionExpirySeconds } from "@/lib/capabilities/policy";
 import type { HireCapabilityPolicy } from "@/lib/capabilities/types";
 import { evaluatePriceLimit } from "@/lib/guardrails/evaluate";
 import {
@@ -253,7 +253,7 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
         throw new Error(`Wallet does not have enough $U for this ${formatUnits(budget, 18)} $U job.`);
       }
 
-      const expiredAt = BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60);
+      const expiredAt = permissionExpirySeconds(capabilityPolicy.permissionDurationDays);
       const createData = encodeFunctionData({
         abi: erc8183CommerceAbi,
         functionName: "createJob",
