@@ -39,6 +39,6 @@
     "postcss": "^8.5.0",
     "solc": "^0.8.36",
     "tailwindcss": "^4.1.0",
-    "typescript": "^5.7.0"
+    "typescript": "^7.0.2"
   }
 }
