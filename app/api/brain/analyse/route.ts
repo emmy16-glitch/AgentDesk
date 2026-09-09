@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_OUTPUT_LENGTH = 80_000;
+const FRIENDLY_CAMBER_FALLBACK = "AgentDesk used its built-in evidence engine for this check.";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -48,8 +49,9 @@ export async function POST(request: NextRequest) {
       try {
         analysis = await analyseWithCamber(input);
       } catch (error) {
-        const reason = error instanceof Error ? error.message : "Camber Brain was unavailable";
-        analysis = buildEvidenceEngineAnalysis(input, reason);
+        const technicalReason = error instanceof Error ? error.message : "Camber Brain was unavailable";
+        console.warn("[AgentDesk Brain] Camber remote analysis unavailable; using deterministic fallback.", technicalReason);
+        analysis = buildEvidenceEngineAnalysis(input, FRIENDLY_CAMBER_FALLBACK);
       }
     }
 
