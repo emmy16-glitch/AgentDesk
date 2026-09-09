@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "media": {
+    "screenVideoPath": "/home/runner/work/AgentDesk/AgentDesk/demo/screen.mp4",
+    "cursorCaptureMode": "system"
+  },
+  "editor": {
+    "wallpaper": "linear-gradient(150deg, #0a0d13 0%, #131722 52%, #0a0e15 100%)",
+    "padding": 64,
+    "shadowIntensity": 0.38,
+    "motionBlurAmount": 0.2,
+    "aspectRatio": "16:9",
+    "webcamLayoutPreset": "no-webcam",
+    "autoZoomEnabled": false,
+    "zoomRegions": [
+      {
+        "id": "zoom-ask",
+        "startMs": 10930,
+        "endMs": 13280,
+        "depth": 1,
+        "focus": {
+          "cx": 0.7328125,
+          "cy": 0.7787037037037037
+        },
+        "focusMode": "manual",
+        "source": "manual"
+      },
+      {
+        "id": "zoom-live",
+        "startMs": 21263,
+        "endMs": 23613,
+        "depth": 1,
+        "focus": {
+          "cx": 0.66953125,
+          "cy": 0.7907407407407407
+        },
+        "focusMode": "manual",
+        "source": "manual"
+      }
+    ],
+    "annotationRegions": [],
+    "exportFormat": "mp4",
+    "exportQuality": "good"
+  }
+}
