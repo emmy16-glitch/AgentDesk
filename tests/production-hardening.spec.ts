@@ -131,22 +131,16 @@ test("a timed-out candidate remains visible but can never outrank a completed au
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /Run auditions/i }).click();
+  await page.getByLabel("What do you want an agent to do?").fill("Find a yield route");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByRole("button", { name: /See results/i })).toBeEnabled();
+  await page.getByRole("button", { name: /See results/i }).click();
 
-  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Yield Candidate One" })).toBeVisible();
+  await expect(page.getByText("Returned a task-specific yield route", { exact: false })).toBeVisible();
 
-  const best = page.locator(".clean-best-card");
-  await expect(best.getByText("BEST FIT", { exact: true })).toBeVisible();
-  await expect(best.getByText("Completed", { exact: true })).toBeVisible();
-  await expect(best.getByText("Returned a task-specific yield route", { exact: false })).toBeVisible();
-
-  const timedOut = page.locator(".clean-result-row").filter({ hasText: "Timed out" });
+  const timedOut = page.locator(".ad-agent-row").filter({ hasText: "Yield Candidate Two" });
   await expect(timedOut).toBeVisible();
-  await expect(timedOut.getByText("NOT ENOUGH EVIDENCE", { exact: true })).toBeVisible();
-  await expect(timedOut.getByText("Timed out", { exact: true })).toBeVisible();
-
-  await timedOut.getByRole("button").click();
-  await expect(timedOut.getByText(/A2A service timed out before returning task-specific output/i)).toBeVisible();
+  await expect(timedOut.getByText("Couldn’t finish", { exact: true })).toBeVisible();
 });

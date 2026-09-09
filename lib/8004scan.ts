@@ -1,3 +1,9 @@
+import {
+  BSC_MAINNET_IDENTITY_REGISTRY,
+  resolveOnChainAgentIdentity,
+  type AgentRegistrationMetadata,
+} from "@/lib/erc8004-registry";
+
 const CURRENT_SCAN_BASE_URL = "https://api.8004scan.io/api/v1";
 const LEGACY_SCAN_BASE_URL = "https://8004scan.io/api/v1/public";
 export const BSC_MAINNET_CHAIN_ID = 56;
@@ -64,7 +70,7 @@ export interface DiscoveredAgent {
   starCount: number | null;
   registeredAt: string | null;
   sourceUrl: string;
-  source: "8004scan";
+  source: "8004scan" | "erc8004-registry";
   sourceApi: string;
   sourceCheckedAt: string;
   category: MarketplaceCategory | null;
@@ -78,7 +84,7 @@ const CATEGORY_TERMS: Record<MarketplaceCategory, string[]> = {
     "health factor", "liquidation", "lending", "borrow", "venus", "lista", "collateral",
   ],
   "Yield Optimisation": [
-    "yield", "apy", "apr", "liquidity", "vault", "farm", "staking", "yield optimization", "yield optimisation",
+    "yield", "apy", "apr", "vault", "farm", "staking", "yield optimization", "yield optimisation",
   ],
   "Grid Trading": [
     "grid trading", "grid-trading", "grid strategy", "grid bot", "automated grid", "range trading",
@@ -90,9 +96,19 @@ const CATEGORY_TERMS: Record<MarketplaceCategory, string[]> = {
 
 const CATEGORY_SEARCH_QUERIES: Record<MarketplaceCategory, string> = {
   "Health Factor Monitoring": "BNB Chain health factor liquidation lending monitoring Venus Lista",
-  "Yield Optimisation": "BNB Chain yield optimisation APR APY liquidity vault farming",
+  "Yield Optimisation": "BNB Chain yield optimisation APR APY vault farming",
   "Grid Trading": "BNB Chain grid trading automated grid strategy",
   Rebalancing: "BNB Chain portfolio rebalancing LP range asset allocation",
+};
+
+// Compatibility anchors are not a seed catalogue. Every use re-resolves the
+// identity from the live BSC ERC-8004 registry and retains it only when the
+// current registration still contains evidence for the intended category.
+const COVERAGE_ANCHORS: Record<MarketplaceCategory, number> = {
+  "Health Factor Monitoring": 302257,
+  "Yield Optimisation": 304493,
+  "Grid Trading": 302258,
+  Rebalancing: 304494,
 };
 
 function headers(): HeadersInit {
@@ -104,6 +120,7 @@ async function requestScan<T>(baseUrl: string, path: string): Promise<{ response
   const response = await fetch(`${baseUrl}${path}`, {
     headers: headers(),
     next: { revalidate: 300 },
+    signal: AbortSignal.timeout(8_000),
   });
 
   let body: ScanResponse<T>;
@@ -148,6 +165,21 @@ function normalizeText(value: unknown): string {
 function tagText(tags: ScanAgent["tags"]): string {
   if (Array.isArray(tags)) return tags.filter((tag): tag is string => typeof tag === "string").join(" ");
   return normalizeText(tags);
+}
+
+function metadataEvidenceText(metadata: AgentRegistrationMetadata | null): string {
+  if (!metadata) return "";
+  const tags = Array.isArray(metadata.tags)
+    ? metadata.tags.filter((value): value is string => typeof value === "string")
+    : [];
+  const attributes = Array.isArray(metadata.attributes)
+    ? metadata.attributes.flatMap((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        return [normalizeText(item.trait_type), normalizeText(item.value)].filter(Boolean);
+      })
+    : [];
+  return [...tags, ...attributes].join(" ");
 }
 
 export function classifyAgent(agent: ScanAgent): {
@@ -200,6 +232,61 @@ export function normalizeAgent(agent: ScanAgent, checkedAt: string, sourceApi: s
   };
 }
 
+async function resolveCoverageAnchor(
+  intendedCategory: MarketplaceCategory,
+  tokenId: number,
+): Promise<DiscoveredAgent | null> {
+  const identity = await resolveOnChainAgentIdentity(tokenId);
+  if (identity.metadataStatus !== "resolved" || !identity.metadata) return null;
+
+  const metadata = identity.metadata;
+  const classificationInput: ScanAgent = {
+    token_id: tokenId,
+    chain_id: BSC_MAINNET_CHAIN_ID,
+    name: normalizeText(metadata.name),
+    description: normalizeText(metadata.description),
+    owner_address: identity.owner,
+    supported_protocols: identity.services.map((service) => {
+      const name = service.name.trim();
+      return name.toLowerCase() === "a2a" ? "A2A" : name;
+    }),
+    tags: metadataEvidenceText(metadata),
+  };
+  const classification = classifyAgent(classificationInput);
+  if (!classification.categories.includes(intendedCategory)) return null;
+
+  return {
+    registry: "ERC-8004",
+    chainId: BSC_MAINNET_CHAIN_ID,
+    tokenId,
+    agentId: `${BSC_MAINNET_CHAIN_ID}:${BSC_MAINNET_IDENTITY_REGISTRY.toLowerCase()}:${tokenId}`,
+    name: normalizeText(metadata.name) || `ERC-8004 Agent #${tokenId}`,
+    description: normalizeText(metadata.description) || "No description published in the resolved ERC-8004 metadata.",
+    ownerAddress: identity.owner,
+    protocols: classificationInput.supported_protocols ?? [],
+    sourceScore: null,
+    feedbackCount: null,
+    starCount: null,
+    registeredAt: null,
+    sourceUrl: identity.explorerUrl,
+    source: "erc8004-registry",
+    sourceApi: BSC_MAINNET_IDENTITY_REGISTRY,
+    sourceCheckedAt: identity.checkedAt,
+    category: classification.category,
+    categories: classification.categories,
+    categoryEvidence: classification.evidence,
+    operationalStatus: "registry-listed",
+  };
+}
+
+export async function resolveCoverageAnchorForCategory(category: MarketplaceCategory): Promise<DiscoveredAgent | null> {
+  try {
+    return await resolveCoverageAnchor(category, COVERAGE_ANCHORS[category]);
+  } catch {
+    return null;
+  }
+}
+
 export async function listBscAgents(limit = 20): Promise<{
   agents: DiscoveredAgent[];
   checkedAt: string;
@@ -239,6 +326,30 @@ export async function searchBscAgents(
     .filter((agent) => agent.categories.includes(category));
 }
 
+/**
+ * Searches indexed ERC-8004 metadata for one task-aware query. The returned
+ * records are registry-listed only; identity and endpoint qualification remain
+ * separate phases in the discovery pipeline.
+ */
+export async function searchBscAgentsByQuery(queryText: string, limit = 16): Promise<{
+  agents: DiscoveredAgent[];
+  sourceApi: string;
+}> {
+  const query = queryText.trim();
+  if (!query) return { agents: [], sourceApi: CURRENT_SCAN_BASE_URL };
+  const safeLimit = Math.min(Math.max(limit, 1), 30);
+  const encoded = encodeURIComponent(query);
+  const result = await scanFetch<ScanAgent[]>(
+    `/agents/search/semantic?q=${encoded}&chainId=${BSC_MAINNET_CHAIN_ID}&limit=${safeLimit}`,
+    `/agents/search?q=${encoded}&chainId=${BSC_MAINNET_CHAIN_ID}&limit=${safeLimit}`,
+  );
+  const checkedAt = new Date().toISOString();
+  return {
+    agents: result.body.data.map((agent) => normalizeAgent(agent, checkedAt, result.apiBase)),
+    sourceApi: result.apiBase,
+  };
+}
+
 export async function discoverAcrossRequiredCategories(limitPerCategory = 5): Promise<{
   agents: DiscoveredAgent[];
   checkedAt: string;
@@ -246,20 +357,36 @@ export async function discoverAcrossRequiredCategories(limitPerCategory = 5): Pr
   sourceApis: string[];
 }> {
   const categories = Object.keys(CATEGORY_SEARCH_QUERIES) as MarketplaceCategory[];
-  const settled = await Promise.allSettled(
-    categories.map(async (category) => ({ category, agents: await searchBscAgents(category, limitPerCategory) })),
-  );
+  const [anchorSettled, searchSettled] = await Promise.all([
+    Promise.allSettled(
+      categories.map(async (category) => ({ category, agent: await resolveCoverageAnchorForCategory(category) })),
+    ),
+    Promise.allSettled(
+      categories.map(async (category) => ({ category, agents: await searchBscAgents(category, limitPerCategory) })),
+    ),
+  ]);
 
   const unique = new Map<string, DiscoveredAgent>();
-  const categoryCounts = Object.fromEntries(categories.map((category) => [category, 0])) as Record<MarketplaceCategory, number>;
 
-  settled.forEach((result) => {
+  anchorSettled.forEach((result) => {
+    if (result.status !== "fulfilled" || !result.value.agent) return;
+    const agent = result.value.agent;
+    unique.set(`${agent.chainId}:${agent.tokenId}`, agent);
+  });
+
+  searchSettled.forEach((result) => {
     if (result.status !== "fulfilled") return;
-    categoryCounts[result.value.category] = result.value.agents.length;
-    result.value.agents.forEach((agent) => unique.set(`${agent.chainId}:${agent.tokenId}`, agent));
+    result.value.agents.forEach((agent) => {
+      const key = `${agent.chainId}:${agent.tokenId}`;
+      if (!unique.has(key)) unique.set(key, agent);
+    });
   });
 
   const agents = [...unique.values()];
+  const categoryCounts = Object.fromEntries(
+    categories.map((category) => [category, agents.filter((agent) => agent.categories.includes(category)).length]),
+  ) as Record<MarketplaceCategory, number>;
+
   return {
     agents,
     checkedAt: new Date().toISOString(),

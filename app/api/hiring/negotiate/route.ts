@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress, type Address } from "viem";
 import { parseAuditionRequest } from "@/lib/auditions/validation";
+import { buildAgentWalletPolicyRequest } from "@/lib/agent-wallets/policy";
+import { hashHireCapabilityPolicy, parseHireCapabilityPolicy } from "@/lib/capabilities/policy";
 import { resolveOnChainAgentIdentity } from "@/lib/erc8004-registry";
 import { ERC8183_DEPLOYMENTS } from "@/lib/erc8183";
 import {
@@ -40,11 +42,18 @@ export async function POST(request: NextRequest) {
   const auditionReceiptHash = typeof rawBody?.auditionReceiptHash === "string"
     ? rawBody.auditionReceiptHash.trim()
     : "";
+  const capabilityPolicy = rawBody?.capabilityPolicy === undefined
+    ? null
+    : parseHireCapabilityPolicy(rawBody.capabilityPolicy);
+
   if (!auditionRequest || !RECEIPT_HASH.test(auditionReceiptHash)) {
     return NextResponse.json({
       ok: false,
       error: "Invalid hire negotiation request. A task, ERC-8004 tokenId, and 32-byte auditionReceiptHash are required.",
     }, { status: 400 });
+  }
+  if (rawBody?.capabilityPolicy !== undefined && !capabilityPolicy) {
+    return NextResponse.json({ ok: false, error: "Invalid hire capability policy." }, { status: 400 });
   }
 
   try {
@@ -57,17 +66,31 @@ export async function POST(request: NextRequest) {
     }
 
     const trustedProvider = getAddress(identity.agentWallet);
-    const taskDescription = `${describeHireTask(auditionRequest.task)}\nAgentDesk audition receipt: ${auditionReceiptHash}`;
+    const capabilityPolicyHash = capabilityPolicy ? hashHireCapabilityPolicy(capabilityPolicy) : null;
+    const taskDescription = [
+      describeHireTask(auditionRequest.task),
+      `AgentDesk audition receipt: ${auditionReceiptHash}`,
+      capabilityPolicyHash ? `AgentDesk capability policy: ${capabilityPolicyHash}` : null,
+    ].filter(Boolean).join("\n");
+    const agentWalletPolicy = buildAgentWalletPolicyRequest(
+      auditionRequest.task,
+      capabilityPolicy ?? undefined,
+    );
+
+    const successCriteria = [
+      "The delivered result must address the exact funded task.",
+      `Preserve the AgentDesk audition receipt ${auditionReceiptHash} in the signed task record.`,
+      ...(capabilityPolicyHash ? [`Preserve the AgentDesk capability policy ${capabilityPolicyHash} in the signed task record.`] : []),
+    ];
+
     const transport = await negotiateAdvertisedService(identity.services, {
       task_description: taskDescription,
       terms: {
         deliverables: `Task-specific ${auditionRequest.task.category} result with assumptions and evidence where available`,
-        quality_standards: "Return the requested work for the funded job. Do not silently substitute another task.",
-        success_criteria: [
-          "The delivered result must address the exact funded task.",
-          `Preserve the AgentDesk audition receipt ${auditionReceiptHash} in the signed task record.`,
-        ],
+        quality_standards: "Return the requested work for the funded job. Do not silently substitute another task or exceed the user’s signed capability boundary.",
+        success_criteria: successCriteria,
       },
+      ...(agentWalletPolicy ? { agent_wallet_policy: agentWalletPolicy } : {}),
     });
 
     const parsed = parseCanonicalNegotiationEnvelope(transport.raw);
@@ -85,6 +108,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: false,
         error: "Provider quote did not preserve the audition receipt in the signed task. AgentDesk will not create an unlinkable paid job.",
+      }, { status: 409 });
+    }
+
+    const description = buildCanonicalJobDescription(parsed.envelope);
+    if (capabilityPolicyHash && !description.toLowerCase().includes(capabilityPolicyHash.toLowerCase())) {
+      return NextResponse.json({
+        ok: false,
+        error: "Provider quote did not preserve the capability policy commitment. AgentDesk will not fund terms that silently drop the user’s permissions.",
       }, { status: 409 });
     }
 
@@ -115,7 +146,6 @@ export async function POST(request: NextRequest) {
       expectedVerifyingContract: deployment.commerce as Address,
     });
 
-    const description = buildCanonicalJobDescription(parsed.envelope);
     if (!description.toLowerCase().includes(auditionReceiptHash.toLowerCase())) {
       throw new Error("Canonical ERC-8183 job description lost the audition receipt commitment");
     }
@@ -143,12 +173,14 @@ export async function POST(request: NextRequest) {
         transport: transport.transport,
         taskDescription,
         auditionReceiptHash,
+        capabilityPolicy,
+        capabilityPolicyHash,
         task: auditionRequest.task,
         checkedAt,
         envelope: parsed.envelope,
         raw: transport.raw,
       },
-      proofBoundary: `The ${transport.transport} service returned a provider-signed quote bound to the ERC-8004 agent wallet, BNB chain, live payment token, canonical Commerce contract, and this audition receipt. Funding has not happened yet.`,
+      proofBoundary: `The ${transport.transport} service returned a provider-signed quote bound to the ERC-8004 agent wallet, BNB chain, live payment token, canonical Commerce contract, this audition receipt${capabilityPolicyHash ? ", and the selected capability policy" : ""}. Funding has not happened yet.`,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ERC-8183 negotiation failed";

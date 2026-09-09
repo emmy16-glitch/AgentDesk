@@ -4,7 +4,7 @@
 
 - Audience: BNB Chain users who need an agent for a specific job, not users browsing generic profiles for entertainment.
 - Primary product question: **Which live BNB agent is the best fit for this exact task, right now?**
-- Primary flow: `describe task → discover → audition/quote → compare → hire → receive result`.
+- Primary flow: `Ask → Details → Test → Best match → Check → Hire`.
 - Product thesis and truthfulness rules are locked in `HACKATHON_LOCK.md`.
 - Active locale: English (`en`). Accessibility target: WCAG 2.2 AA.
 
@@ -40,9 +40,9 @@ The UI must never visually or verbally upgrade one state into the next without e
 | Camber assistant | `lib/camber.ts` + `lib/camber-agent-config.ts` | Separate assistant integration; not marketplace identity proof |
 | Legacy activation contract | `contracts/AgentTrustMarketplace.sol` | Prototype/testnet infrastructure only; not a completed agent job |
 
-## Current task-first UX
+## Current guided UX
 
-The homepage now leads with:
+The homepage leads with:
 
 > **What do you want an agent to do?**
 
@@ -53,9 +53,15 @@ The four required task families are first-class controls:
 3. Grid Trading
 4. Rebalancing
 
-Each family has its own required input contract. AgentDesk then shows source-qualified candidates discovered from the ERC-8004 evidence layer and lets the user select up to four for the same audition.
+Each family has its own required input contract. AgentDesk selects up to four source-qualified candidates from the ERC-8004 evidence layer and auditions them on the same bounded task. Candidate identities and raw evidence remain available only after real results are returned.
 
-The older registry-card browser remains below the task-first flow as an evidence-inspection surface, not as the primary product journey.
+The shared `AgentDeskShell` keeps navigation, the single supplied environmental background, and progress state stable across the entire flow. Wallet connection is not available in navigation or before the Hire step.
+
+## Task rules
+
+Screen 2 keeps **Your rules** collapsed by default so task details remain primary. Rules are task-specific constraints, not a profile or long-term preference system: risk tolerance, optional maximum hire price, optional protocol restriction, action permission, and the public-wallet data boundary where relevant.
+
+The same optional `guardrails` object travels with the task through every candidate audition. A changed rule invalidates prior race/comparison state. Rule evaluation distinguishes `pass`, `fail`, and `unknown`; unknown never becomes a pass. Known price, protocol, or unauthorized-action conflicts are hard failures and cannot receive Best Match. The same task object, including rules, is hashed into the audition receipt and carried into the signed ERC-8183 job description.
 
 ## Audition result contract
 
@@ -95,12 +101,14 @@ There is no unexplained global trust score.
 
 For candidates auditioned on the same task, comparison order is explainable and deterministic. It considers, in order:
 
-1. audition completion state;
-2. usable task-specific output;
-3. machine-readable quote availability;
-4. preserved evidence count;
-5. measured response latency;
-6. a deterministic token-ID tie break.
+1. hard user-rule conflicts;
+2. audition completion state;
+3. usable task-specific output;
+4. confirmed rule compatibility;
+5. machine-readable quote availability;
+6. preserved evidence count;
+7. measured response latency;
+8. a deterministic token-ID tie break.
 
 The UI states why each candidate ranked where it did. A relative BEST FIT label therefore means “best observable evidence in this audition set,” not “globally trustworthy” or “economically guaranteed.”
 

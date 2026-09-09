@@ -1,4 +1,6 @@
 import type { MarketplaceCategory } from "@/lib/8004scan";
+import type { TaskGuardrails } from "@/lib/guardrails/types";
+import type { AgentWalletAdvertisement } from "@/lib/agent-wallets/types";
 
 export type AuditionStatus = "completed" | "unsupported" | "timeout" | "error";
 export type TaskFitLabel = "BEST FIT" | "STRONG FIT" | "PARTIAL FIT" | "NOT ENOUGH EVIDENCE";
@@ -6,6 +8,7 @@ export type TaskFitLabel = "BEST FIT" | "STRONG FIT" | "PARTIAL FIT" | "NOT ENOU
 interface BaseAuditionTask {
   category: MarketplaceCategory;
   instructions?: string;
+  guardrails?: TaskGuardrails;
 }
 
 export interface HealthFactorAuditionTask extends BaseAuditionTask {
@@ -55,7 +58,7 @@ export interface AuditionQuote {
 }
 
 export interface AuditionEvidence {
-  kind: "identity" | "agent-card" | "service-response" | "quote";
+  kind: "identity" | "agent-card" | "wallet-infrastructure" | "service-response" | "quote";
   source: string;
   observedAt: string;
   summary: string;
@@ -75,6 +78,8 @@ export interface AuditionCandidate {
   registryAddress: string;
   owner: string;
   agentWallet: string | null;
+  /** Explicit provider advertisement only; not proof of active wallet policy. */
+  walletInfrastructure?: AgentWalletAdvertisement | null;
   sourceUrl: string;
 }
 

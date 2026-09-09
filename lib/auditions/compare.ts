@@ -1,12 +1,17 @@
 import type { AuditionResult, TaskFitLabel } from "@/lib/auditions/types";
+import { evaluateTaskGuardrails } from "@/lib/guardrails/evaluate";
+import type { RuleEvaluation, TaskGuardrails } from "@/lib/guardrails/types";
 
 export interface ComparedAudition extends AuditionResult {
+  ruleEvaluation: RuleEvaluation;
   comparison: {
     rank: number;
     label: TaskFitLabel;
     reasons: string[];
   };
 }
+
+type EvaluatedAudition = AuditionResult & { ruleEvaluation: RuleEvaluation };
 
 function statusRank(status: AuditionResult["status"]): number {
   if (status === "completed") return 4;
@@ -15,12 +20,20 @@ function statusRank(status: AuditionResult["status"]): number {
   return 1;
 }
 
-function compareEvidence(a: AuditionResult, b: AuditionResult): number {
+function compareEvidence(a: EvaluatedAudition, b: EvaluatedAudition): number {
+  const hardConflictDelta = Number(a.ruleEvaluation.hardFailure) - Number(b.ruleEvaluation.hardFailure);
+  if (hardConflictDelta) return hardConflictDelta;
   const statusDelta = statusRank(b.status) - statusRank(a.status);
   if (statusDelta) return statusDelta;
 
   const outputDelta = Number(Boolean(b.output)) - Number(Boolean(a.output));
   if (outputDelta) return outputDelta;
+
+  const ruleStrengthDelta = b.ruleEvaluation.passedCount - a.ruleEvaluation.passedCount;
+  if (ruleStrengthDelta) return ruleStrengthDelta;
+
+  const unknownDelta = a.ruleEvaluation.unknownCount - b.ruleEvaluation.unknownCount;
+  if (unknownDelta) return unknownDelta;
 
   const quoteDelta = Number(Boolean(b.quote)) - Number(Boolean(a.quote));
   if (quoteDelta) return quoteDelta;
@@ -35,18 +48,22 @@ function compareEvidence(a: AuditionResult, b: AuditionResult): number {
   return a.candidate.tokenId - b.candidate.tokenId;
 }
 
-function labelFor(result: AuditionResult, rank: number, completedCount: number): TaskFitLabel {
+function labelFor(result: EvaluatedAudition, rank: number, completedCount: number): TaskFitLabel {
+  if (result.ruleEvaluation.hardFailure) return "NOT ENOUGH EVIDENCE";
   if (result.status !== "completed" || !result.output) return "NOT ENOUGH EVIDENCE";
   if (rank === 1) return "BEST FIT";
   return completedCount > 1 ? "STRONG FIT" : "PARTIAL FIT";
 }
 
-function comparisonReasons(result: AuditionResult, rank: number): string[] {
+function comparisonReasons(result: EvaluatedAudition, rank: number): string[] {
   const reasons: string[] = [];
   if (result.status === "completed") reasons.push("Completed the same bounded task-specific audition as the other candidates.");
   else reasons.push(`Did not complete the live audition (${result.status}).`);
 
   if (result.output) reasons.push("Returned a usable task-specific result.");
+  if (result.ruleEvaluation.hardFailure) reasons.push("Doesn’t meet an explicit rule, so it cannot be selected as Best Match.");
+  else if (result.ruleEvaluation.status === "partial") reasons.push("Some rule evidence could not be confirmed.");
+  else if (result.ruleEvaluation.checks.length) reasons.push("The rules with available evidence were respected.");
   if (result.quote) reasons.push(`Returned a machine-readable quote of ${result.quote.amount} ${result.quote.asset}.`);
   if (result.latencyMs !== null) reasons.push(`Measured response latency: ${result.latencyMs} ms.`);
   reasons.push(`Preserved ${result.evidence.length} raw evidence item${result.evidence.length === 1 ? "" : "s"}.`);
@@ -56,8 +73,9 @@ function comparisonReasons(result: AuditionResult, rank: number): string[] {
   return reasons;
 }
 
-export function compareAuditions(results: AuditionResult[]): ComparedAudition[] {
-  const sorted = [...results].sort(compareEvidence);
+export function compareAuditions(results: AuditionResult[], guardrails?: TaskGuardrails): ComparedAudition[] {
+  const evaluated = results.map((result) => ({ ...result, ruleEvaluation: evaluateTaskGuardrails(result, guardrails ?? result.task.guardrails) }));
+  const sorted = [...evaluated].sort(compareEvidence);
   const completedCount = sorted.filter((result) => result.status === "completed" && result.output).length;
 
   return sorted.map((result, index) => {

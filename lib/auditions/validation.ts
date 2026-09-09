@@ -1,4 +1,5 @@
 import type { AuditionRequest, AuditionTask } from "@/lib/auditions/types";
+import type { ActionPolicy, DataPolicy, RiskTolerance, TaskGuardrails } from "@/lib/guardrails/types";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -12,12 +13,45 @@ function cleanString(value: unknown, maxLength = 1000): string | undefined {
   return clean && clean.length <= maxLength ? clean : undefined;
 }
 
+function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value) ? value as T : undefined;
+}
+
+function parseGuardrails(value: unknown): TaskGuardrails | undefined | null {
+  if (value === undefined) return undefined;
+  const raw = record(value);
+  if (!raw) return null;
+  const actionPolicy = oneOf<ActionPolicy>(raw.actionPolicy, ["analysis-only", "propose-only", "approval-required"]);
+  const dataPolicy = oneOf<DataPolicy>(raw.dataPolicy, ["task-only", "public-wallet-only"]);
+  if (!actionPolicy || !dataPolicy) return null;
+  const riskTolerance = oneOf<RiskTolerance>(raw.riskTolerance, ["low", "moderate", "high"]);
+  if (raw.riskTolerance !== undefined && !riskTolerance) return null;
+  const rawProtocols = raw.approvedProtocols;
+  if (rawProtocols !== undefined && (!Array.isArray(rawProtocols) || rawProtocols.length > 8)) return null;
+  const approvedProtocols = Array.isArray(rawProtocols)
+    ? rawProtocols.map((item) => cleanString(item, 80)).filter((item): item is string => Boolean(item))
+    : undefined;
+  if (Array.isArray(rawProtocols) && approvedProtocols?.length !== rawProtocols.length) return null;
+  const rawPrice = raw.maxPrice;
+  let maxPrice: TaskGuardrails["maxPrice"];
+  if (rawPrice !== undefined) {
+    const price = record(rawPrice);
+    const amount = price ? cleanString(price.amount, 50) : undefined;
+    const asset = price ? cleanString(price.asset, 30) : undefined;
+    if (!amount || !asset || !/^\d+(?:\.\d+)?$/.test(amount)) return null;
+    maxPrice = { amount, asset };
+  }
+  return { ...(riskTolerance ? { riskTolerance } : {}), ...(maxPrice ? { maxPrice } : {}), ...(approvedProtocols ? { approvedProtocols } : {}), actionPolicy, dataPolicy };
+}
+
 export function parseAuditionTask(value: unknown): AuditionTask | null {
   const task = record(value);
   if (!task) return null;
 
   const category = cleanString(task.category, 80);
   const instructions = cleanString(task.instructions, 2000);
+  const guardrails = parseGuardrails(task.guardrails);
+  if (guardrails === null) return null;
 
   if (category === "Health Factor Monitoring") {
     const wallet = cleanString(task.wallet, 200);
@@ -30,6 +64,7 @@ export function parseAuditionTask(value: unknown): AuditionTask | null {
       ...(protocol ? { protocol } : {}),
       ...(goal ? { goal } : {}),
       ...(instructions ? { instructions } : {}),
+      ...(guardrails ? { guardrails } : {}),
     };
   }
 
@@ -44,6 +79,7 @@ export function parseAuditionTask(value: unknown): AuditionTask | null {
       amount,
       ...(riskPreference ? { riskPreference } : {}),
       ...(instructions ? { instructions } : {}),
+      ...(guardrails ? { guardrails } : {}),
     };
   }
 
@@ -60,6 +96,7 @@ export function parseAuditionTask(value: unknown): AuditionTask | null {
       ...(priceRange ? { priceRange } : {}),
       ...(riskPreference ? { riskPreference } : {}),
       ...(instructions ? { instructions } : {}),
+      ...(guardrails ? { guardrails } : {}),
     };
   }
 
@@ -72,6 +109,7 @@ export function parseAuditionTask(value: unknown): AuditionTask | null {
       portfolio,
       objective,
       ...(instructions ? { instructions } : {}),
+      ...(guardrails ? { guardrails } : {}),
     };
   }
 

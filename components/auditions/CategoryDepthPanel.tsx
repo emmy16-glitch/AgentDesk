@@ -21,11 +21,6 @@ interface BrainResponse {
   error?: string;
   verification?: IndependentVerification;
   analysis?: BrainAnalysis;
-  brain?: {
-    camberConfigured: boolean;
-    camberAttempted: boolean;
-    proofBoundary: string;
-  };
 }
 
 function sourceLink(source: string): string | null {
@@ -61,6 +56,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
           tokenId: result.candidate.tokenId,
           task: result.task,
           output: result.output,
+          ruleEvaluation: result.ruleEvaluation,
         }),
       });
       const body = await request.json() as BrainResponse;
@@ -91,7 +87,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
 
     {!verification ? <div className="category-depth-preflight">
       <SearchCheck size={15} />
-      <span>AgentDesk first reproduces supported BNB facts, then the Brain explains only the evidence that was actually found.</span>
+      <span>AgentDesk reproduces only facts it can independently check, then explains what remains uncertain.</span>
     </div> : null}
 
     {verification ? <>
@@ -119,7 +115,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
               <span>{check.status}</span>
             </div>
             <p>{check.summary}</p>
-            <small>{href ? <a href={href} target="_blank" rel="noreferrer">{check.source} <ExternalLink size={10} /></a> : check.source}</small>
+            <small>{href ? <a href={href} target="_blank" rel="noreferrer">Source <ExternalLink size={10} /></a> : check.source}</small>
           </article>;
         })}
       </div>
@@ -129,23 +125,23 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
 
     {analysis ? <section className={`brain-analysis ${decisionClass(analysis.decision)}`} aria-label="AgentDesk Brain analysis">
       <div className="brain-analysis-heading">
-        <div><BrainCircuit size={17} /><span><strong>{analysis.providerLabel}</strong><small>{analysis.decision}</small></span></div>
-        <span className="brain-proof-label">EXPLAINS PROOF · DOES NOT CREATE IT</span>
+        <div><BrainCircuit size={17} /><span><strong>AgentDesk&apos;s take</strong><small>{analysis.decision}</small></span></div>
       </div>
       <h5>{analysis.headline}</h5>
       <p className="brain-summary">{analysis.summary}</p>
 
-      <div className="brain-columns">
-        <BrainList title="Verified facts" items={analysis.verifiedFacts} empty="No independently reproduced facts yet." />
-        <BrainList title="Unresolved claims" items={analysis.unresolvedClaims} empty="No unresolved claim was surfaced in this run." />
-        {analysis.conflicts.length ? <BrainList title="Conflicts" items={analysis.conflicts} empty="" danger /> : null}
-        <BrainList title="Watchouts" items={analysis.watchouts} empty="No additional category watchout was generated." />
-      </div>
+      {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question</strong><p>{analysis.nextQuestion}</p></div> : null}
 
-      {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question for this agent</strong><p>{analysis.nextQuestion}</p></div> : null}
-      {analysis.fallbackReason ? <div className="brain-fallback"><CircleAlert size={13} /><span>Camber Brain was unavailable for this run. AgentDesk used its deterministic evidence engine instead, so the verification result remains usable.</span></div> : null}
-      <p className="brain-boundary">{analysis.boundary}</p>
-      {response?.brain?.proofBoundary ? <p className="brain-boundary system">{response.brain.proofBoundary}</p> : null}
+      <details className="brain-details">
+        <summary>Review reasoning details</summary>
+        <div className="brain-columns">
+          <BrainList title="Verified facts" items={analysis.verifiedFacts} empty="No independently reproduced facts yet." />
+          <BrainList title="Unresolved claims" items={analysis.unresolvedClaims} empty="No unresolved claim was surfaced in this run." />
+          {analysis.conflicts.length ? <BrainList title="Conflicts" items={analysis.conflicts} empty="" danger /> : null}
+          <BrainList title="Watchouts" items={analysis.watchouts} empty="No additional category watchout was generated." />
+        </div>
+        <p className="brain-boundary">{analysis.boundary}</p>
+      </details>
     </section> : null}
 
     {verification ? <button type="button" className="category-depth-refresh" onClick={analyse} disabled={checking}>

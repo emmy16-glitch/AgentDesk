@@ -1,4 +1,5 @@
 import type { AuditionTask } from "@/lib/auditions/types";
+import type { HireCapabilityPolicy } from "@/lib/capabilities/types";
 import type { SupportedCommerceChainId } from "@/lib/erc8183";
 import type { CanonicalNegotiationEnvelope } from "@/lib/hiring/erc8183-negotiation";
 import type { QuoteSignatureMethod } from "@/lib/hiring/verify-erc8183-quote";
@@ -23,6 +24,8 @@ export interface Erc8183NegotiatedQuote {
   transport: "HTTP" | "A2A";
   taskDescription: string;
   auditionReceiptHash: string;
+  capabilityPolicy: HireCapabilityPolicy | null;
+  capabilityPolicyHash: `0x${string}` | null;
   task: AuditionTask;
   checkedAt: string;
   envelope: CanonicalNegotiationEnvelope;
@@ -39,6 +42,7 @@ export interface Erc8183JobEvidence {
   jobId: string;
   chainId: SupportedCommerceChainId;
   receiptHash: string;
+  capabilityPolicyHash?: `0x${string}`;
   createTx: string;
   registerTx: string;
   budgetTx: string;

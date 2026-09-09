@@ -1,0 +1,136 @@
+.hire-capabilities {
+  margin-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.hire-capabilities-summary {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 2px;
+  color: #e8ebee;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.hire-capabilities-summary:hover .hire-capabilities-review { color: #ffd34d; }
+.hire-capabilities-title { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.hire-capabilities-title > svg { flex: 0 0 auto; color: #f3ba2f; stroke-width: 1.8; }
+.hire-capabilities-title > span { min-width: 0; display: grid; gap: 3px; }
+.hire-capabilities-title strong { color: #eff0ed; font-size: 11px; font-weight: 650; }
+.hire-capabilities-title small { overflow: hidden; color: #858b92; font-size: 8.5px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.hire-capabilities-review { flex: 0 0 auto; color: #b7bbc0; font-size: 9px; font-weight: 650; transition: color .15s ease; }
+
+.hire-capabilities-panel {
+  display: grid;
+  gap: 0;
+  padding: 2px 0 13px;
+  animation: hire-permissions-enter .18s ease-out both;
+}
+
+.hire-permission-row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 2px;
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+.hire-permission-row > div { min-width: 0; display: grid; gap: 3px; }
+.hire-permission-row strong { color: #dedfdd; font-size: 10px; font-weight: 620; }
+.hire-permission-row small { max-width: 410px; color: #7f858d; font-size: 8.5px; line-height: 1.45; }
+.hire-permission-row.readonly > span { flex: 0 0 auto; color: #c9cacc; font-size: 9px; }
+
+.hire-permission-switch {
+  min-width: 66px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 4px 8px 4px 5px;
+  color: #969ba0;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  background: rgba(0,0,0,.18);
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.hire-permission-switch > span { width: 16px; height: 16px; margin-right: auto; border-radius: 50%; background: #5e646b; transition: transform .15s ease, background .15s ease; }
+.hire-permission-switch b { font-size: 8px; font-weight: 700; }
+.hire-permission-switch.on { color: #0a0b0b; border-color: #d7a526; background: #f3ba2f; }
+.hire-permission-switch.on > span { background: #161410; transform: translateX(2px); }
+.hire-permission-switch:disabled { cursor: not-allowed; opacity: .52; }
+
+.hire-paid-settings {
+  margin: 3px 0 7px;
+  padding: 10px 12px;
+  border: 1px solid rgba(243,186,47,.16);
+  border-radius: 10px;
+  background: rgba(243,186,47,.035);
+}
+.hire-paid-setting + .hire-paid-setting { margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.06); }
+.hire-paid-setting > span { display: grid; gap: 2px; }
+.hire-paid-setting strong { color: #dedfdd; font-size: 9px; font-weight: 620; }
+.hire-paid-setting small { color: #858a90; font-size: 8px; line-height: 1.4; }
+
+.hire-budget-options,
+.hire-tool-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.hire-budget-options button,
+.hire-tool-options button {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 9px;
+  color: #b8bdc2;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 8px;
+  background: rgba(0,0,0,.16);
+  font-size: 8px;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.hire-budget-options button:hover:not(:disabled),
+.hire-tool-options button:hover:not(:disabled) { border-color: rgba(243,186,47,.34); color: #e3e4e1; }
+.hire-budget-options button.active,
+.hire-tool-options button.active { color: #0c0d0c; border-color: #e0ae2e; background: #f3ba2f; }
+.hire-budget-options button:disabled,
+.hire-tool-options button:disabled { cursor: not-allowed; opacity: .5; }
+
+.hire-capability-note,
+.hire-capability-locked {
+  margin: 10px 2px 0;
+  color: #858a90;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.hire-capability-locked { color: #c7ab69; }
+
+@keyframes hire-permissions-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 760px) {
+  .hire-capabilities-title small { max-width: 230px; white-space: normal; }
+  .hire-permission-row { align-items: flex-start; }
+  .hire-permission-row > div { padding-top: 2px; }
+  .hire-permission-switch { flex: 0 0 auto; }
+  .hire-budget-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hire-budget-options button { width: 100%; }
+  .hire-tool-options button { min-height: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hire-capabilities-panel { animation: none; }
+  .hire-permission-switch,
+  .hire-permission-switch > span,
+  .hire-budget-options button,
+  .hire-tool-options button { transition: none; }
+}

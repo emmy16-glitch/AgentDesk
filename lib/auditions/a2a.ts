@@ -7,6 +7,8 @@ import type { AuditionEvidence, AuditionQuote, AuditionStatus, AuditionTask } fr
 const MAX_CARD_BYTES = 256 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 const MAX_RENDERED_OUTPUT_CHARS = 48_000;
+const AUDITION_DEADLINE_MS = 12_000;
+const A2A_POLL_INTERVAL_MS = 650;
 
 interface AgentCard {
   protocolVersion?: string;
@@ -84,11 +86,11 @@ function contentFromParts(parts: unknown): string[] {
     const value = part as Record<string, unknown>;
     const partKind = typeof value.kind === "string" ? value.kind : value.type;
 
-    if (partKind === "text" && typeof value.text === "string" && value.text.trim()) {
+    if ((partKind === "text" || partKind === undefined) && typeof value.text === "string" && value.text.trim()) {
       return [value.text.trim()];
     }
 
-    if (partKind === "data" && "data" in value) {
+    if ((partKind === "data" || partKind === undefined) && "data" in value) {
       const rendered = renderStructuredData(value.data);
       return rendered ? [rendered] : [];
     }
@@ -103,12 +105,23 @@ function outputFromMessage(value: unknown): string | null {
   return content.length ? content.join("\n\n") : null;
 }
 
+function directOutput(value: Record<string, unknown>): string | null {
+  for (const key of ["output", "answer", "text", "content"]) {
+    const candidate = value[key];
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+  return null;
+}
+
 function extractOutput(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const envelope = payload as Record<string, unknown>;
   const result = envelope.result;
-  if (!result || typeof result !== "object") return null;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
   const value = result as Record<string, unknown>;
+
+  const nonStandardDirect = directOutput(value);
+  if (nonStandardDirect) return nonStandardDirect;
 
   const direct = outputFromMessage(value);
   if (direct) return direct;
@@ -125,7 +138,12 @@ function extractOutput(payload: unknown): string | null {
   if (Array.isArray(value.artifacts)) {
     const artifactContent = value.artifacts.flatMap((artifact) => {
       const rendered = outputFromMessage(artifact);
-      return rendered ? [rendered] : [];
+      if (rendered) return [rendered];
+      if (artifact && typeof artifact === "object" && !Array.isArray(artifact)) {
+        const parts = contentFromParts((artifact as Record<string, unknown>).parts);
+        return parts.length ? [parts.join("\n\n")] : [];
+      }
+      return [];
     });
     if (artifactContent.length) return artifactContent.join("\n\n");
   }
@@ -146,11 +164,19 @@ function extractOutput(payload: unknown): string | null {
 function taskState(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const result = (payload as Record<string, unknown>).result;
-  if (!result || typeof result !== "object") return null;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
   const status = (result as Record<string, unknown>).status;
-  if (!status || typeof status !== "object") return null;
+  if (!status || typeof status !== "object" || Array.isArray(status)) return null;
   const state = (status as Record<string, unknown>).state;
-  return typeof state === "string" ? state : null;
+  return typeof state === "string" ? state.trim().toLowerCase() : null;
+}
+
+function taskId(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const result = (payload as Record<string, unknown>).result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+  const id = (result as Record<string, unknown>).id;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
 }
 
 function parseQuote(value: unknown, source: string): AuditionQuote | null {
@@ -189,11 +215,11 @@ function findQuoteInValue(value: unknown, depth = 0): AuditionQuote | null {
 function extractQuote(payload: unknown): AuditionQuote | null {
   if (!payload || typeof payload !== "object") return null;
   const result = (payload as Record<string, unknown>).result;
-  if (!result || typeof result !== "object") return null;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return null;
   const value = result as Record<string, unknown>;
 
   const metadata = value.metadata;
-  if (metadata && typeof metadata === "object") {
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
     const direct = parseQuote((metadata as Record<string, unknown>).quote, "A2A response metadata");
     if (direct) return direct;
   }
@@ -365,6 +391,77 @@ function resolveA2ATarget(card: AgentCard): { target: string; transport: string 
   return null;
 }
 
+async function postJsonRpc(target: URL, body: unknown, timeoutMs: number): Promise<unknown> {
+  const response = await fetch(target, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "AgentDesk-Audition/1.0",
+    },
+    body: JSON.stringify(body),
+    redirect: "manual",
+    cache: "no-store",
+    signal: AbortSignal.timeout(Math.max(1_000, timeoutMs)),
+  });
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(`A2A audition returned HTTP ${response.status}`);
+  }
+  return readJsonLimited(response, MAX_RESPONSE_BYTES);
+}
+
+async function pollTask({
+  target,
+  initialPayload,
+  started,
+  evidence,
+}: {
+  target: URL;
+  initialPayload: unknown;
+  started: number;
+  evidence: AuditionEvidence[];
+}): Promise<{ payload: unknown; state: string | null }> {
+  const id = taskId(initialPayload);
+  if (!id) return { payload: initialPayload, state: taskState(initialPayload) };
+
+  let payload = initialPayload;
+  let state = taskState(payload);
+  let polls = 0;
+
+  while ((state === "submitted" || state === "working") && performance.now() - started < AUDITION_DEADLINE_MS) {
+    await new Promise((resolve) => setTimeout(resolve, A2A_POLL_INTERVAL_MS));
+    const remaining = AUDITION_DEADLINE_MS - (performance.now() - started);
+    if (remaining < 1_000) break;
+
+    const requestBody = {
+      jsonrpc: "2.0",
+      id: randomUUID(),
+      method: "tasks/get",
+      params: { id, historyLength: 6 },
+    };
+
+    payload = await postJsonRpc(target, requestBody, remaining);
+    polls += 1;
+    state = taskState(payload);
+
+    if (payload && typeof payload === "object" && (payload as Record<string, unknown>).error) break;
+    if (state && !["submitted", "working"].includes(state)) break;
+  }
+
+  if (polls > 0) {
+    evidence.push({
+      kind: "service-response",
+      source: target.toString(),
+      observedAt: new Date().toISOString(),
+      summary: `AgentDesk followed the A2A task with tasks/get ${polls} time${polls === 1 ? "" : "s"}; latest state: ${state ?? "not reported"}.`,
+      raw: payload,
+    });
+  }
+
+  return { payload, state };
+}
+
 export async function auditionA2AService(service: AgentService, task: AuditionTask): Promise<A2AExecution> {
   const checkedAt = new Date().toISOString();
   const evidence: AuditionEvidence[] = [];
@@ -471,42 +568,19 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
   let payload: unknown;
   let latencyMs: number;
   try {
-    const response = await fetch(targetValidation.url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "AgentDesk-Audition/1.0",
-      },
-      body: JSON.stringify(requestBody),
-      redirect: "manual",
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
-    });
+    payload = await postJsonRpc(targetValidation.url, requestBody, AUDITION_DEADLINE_MS);
     latencyMs = Math.round(performance.now() - started);
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      return {
-        status: "error",
-        latencyMs,
-        checkedAt,
-        output: null,
-        quote: null,
-        evidence,
-        error: `A2A audition returned HTTP ${response.status}`,
-      };
-    }
-    payload = await readJsonLimited(response, MAX_RESPONSE_BYTES);
   } catch (error) {
     latencyMs = Math.round(performance.now() - started);
+    const message = error instanceof Error ? error.message : "A2A audition request failed";
     return {
-      status: timeoutError(error) ? "timeout" : "error",
+      status: timeoutError(error) || /timed out/i.test(message) ? "timeout" : "error",
       latencyMs,
       checkedAt,
       output: null,
       quote: null,
       evidence,
-      error: timeoutError(error) ? "A2A audition timed out after 12 seconds" : "A2A audition request failed",
+      error: timeoutError(error) ? "A2A audition timed out after 12 seconds" : message,
     };
   }
 
@@ -530,6 +604,40 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
     };
   }
 
+  let state = taskState(payload);
+  if (state === "submitted" || state === "working") {
+    try {
+      const polled = await pollTask({ target: targetValidation.url, initialPayload: payload, started, evidence });
+      payload = polled.payload;
+      state = polled.state;
+      latencyMs = Math.round(performance.now() - started);
+    } catch (error) {
+      latencyMs = Math.round(performance.now() - started);
+      const message = error instanceof Error ? error.message : "A2A task polling failed";
+      return {
+        status: timeoutError(error) ? "timeout" : "error",
+        latencyMs,
+        checkedAt,
+        output: null,
+        quote: null,
+        evidence,
+        error: message,
+      };
+    }
+  }
+
+  if (payload && typeof payload === "object" && (payload as Record<string, unknown>).error) {
+    return {
+      status: "error",
+      latencyMs,
+      checkedAt,
+      output: null,
+      quote: null,
+      evidence,
+      error: "A2A service returned a JSON-RPC error while AgentDesk checked the task state. See raw evidence for details.",
+    };
+  }
+
   const applicationError = findApplicationError(payload);
   if (applicationError) {
     return {
@@ -543,8 +651,7 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
     };
   }
 
-  const state = taskState(payload);
-  if (state === "input-required" || state === "submitted" || state === "working") {
+  if (state === "input-required") {
     return {
       status: "unsupported",
       latencyMs,
@@ -552,7 +659,31 @@ export async function auditionA2AService(service: AgentService, task: AuditionTa
       output: extractOutput(payload),
       quote: extractQuote(payload),
       evidence,
-      error: `The agent returned task state '${state}', which requires a multi-turn or asynchronous audition flow not yet supported.`,
+      error: "The agent needs additional user input before it can finish this audition.",
+    };
+  }
+
+  if (state === "submitted" || state === "working") {
+    return {
+      status: "timeout",
+      latencyMs,
+      checkedAt,
+      output: extractOutput(payload),
+      quote: extractQuote(payload),
+      evidence,
+      error: "The agent was still working when the AgentDesk audition window ended.",
+    };
+  }
+
+  if (state === "failed" || state === "rejected" || state === "canceled" || state === "cancelled") {
+    return {
+      status: "error",
+      latencyMs,
+      checkedAt,
+      output: extractOutput(payload),
+      quote: extractQuote(payload),
+      evidence,
+      error: `The agent ended the A2A task with state '${state}'.`,
     };
   }
 

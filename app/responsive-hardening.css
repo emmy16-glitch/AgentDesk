@@ -48,12 +48,6 @@
   .category-scroll {
     width: 100%;
     max-width: 100%;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .category-scroll::-webkit-scrollbar {
-    display: none;
   }
 
   /* Preserve all four visual capability chips without horizontal clipping. */

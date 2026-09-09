@@ -17,10 +17,13 @@ export async function probeService(service: AgentService): Promise<ServiceProbe>
   const checkedAt = new Date().toISOString();
   const validation = await validatePublicHttpsUrl(service.endpoint);
   if (!validation.ok) {
+    const unsupported =
+      validation.reason.startsWith("Only public HTTPS") ||
+      /unresolved url template|template parameters are unsupported/i.test(validation.reason);
     return {
       name: service.name,
       endpoint: service.endpoint,
-      state: validation.reason.startsWith("Only public HTTPS") ? "unsupported" : "blocked",
+      state: unsupported ? "unsupported" : "blocked",
       httpStatus: null,
       latencyMs: null,
       checkedAt,

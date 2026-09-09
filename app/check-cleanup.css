@@ -1,0 +1,171 @@
+/* Final presentation pass for the six-screen AgentDesk flow.
+   Keep proof available without making the primary decision surface feel like a debug console. */
+
+.ad-check-layout {
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  gap: 20px;
+}
+
+/* Live agents can return long prose or schema-like examples. Keep the exact
+   response available, but contain it so one answer cannot dominate the page. */
+.ad-check-answer > p,
+.ad-agent-answer > p {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.22) transparent;
+}
+
+.ad-check-answer details,
+.ad-agent-answer details {
+  margin-top: 16px;
+}
+
+/* The verification column should read as one evidence report, not nested cards. */
+.ad-verification .category-depth {
+  margin-top: 4px !important;
+}
+
+.ad-verification .category-depth-topline {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.ad-verification .category-depth-preflight {
+  margin: 14px 0 0;
+  padding: 11px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ad-text-secondary);
+}
+
+.ad-verification .category-depth-verdict {
+  margin: 16px 0 14px;
+  padding: 12px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ad-verification .category-depth-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 0 0 15px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.ad-verification .category-depth-stats > div {
+  padding: 2px 10px;
+  border: 0;
+  border-right: 1px solid rgba(255,255,255,.08);
+  border-radius: 0;
+  background: transparent;
+}
+
+.ad-verification .category-depth-stats > div:first-child { padding-left: 0; }
+.ad-verification .category-depth-stats > div:last-child { border-right: 0; }
+
+.ad-verification .category-depth-checks {
+  gap: 0;
+  padding: 0;
+}
+
+.ad-verification .category-depth-check {
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.075);
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ad-verification .category-depth-check-head span {
+  font-size: 8px;
+}
+
+.ad-verification .category-depth-check p {
+  margin: 6px 0 4px;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.ad-verification .category-depth-boundary {
+  margin: 12px 0 0;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  border-radius: 0;
+}
+
+.ad-verification .brain-analysis {
+  margin: 16px 0 0;
+  padding: 15px 0 0;
+  border: 0 !important;
+  border-top: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.ad-verification .brain-analysis-heading {
+  margin-bottom: 8px;
+}
+
+.ad-verification .brain-next-question {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(243,186,47,.12);
+  background: rgba(243,186,47,.035);
+}
+
+.brain-details {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.075);
+}
+
+.brain-details > summary {
+  cursor: pointer;
+  color: var(--ad-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.brain-details[open] > summary {
+  color: var(--ad-text);
+  margin-bottom: 10px;
+}
+
+.brain-details .brain-columns {
+  gap: 8px;
+}
+
+.brain-details .brain-list {
+  padding: 9px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.brain-details .brain-boundary {
+  margin-top: 10px;
+}
+
+.ad-verification .category-depth-refresh {
+  margin: 14px 0 0;
+}
+
+@media (max-width: 700px) {
+  .ad-check-layout { grid-template-columns: 1fr; gap: 12px; }
+  .ad-check-answer > p,
+  .ad-agent-answer > p { max-height: 360px; }
+  .ad-verification .category-depth-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .ad-verification .category-depth-stats > div:nth-child(2) { border-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brain-details { scroll-behavior: auto; }
+}

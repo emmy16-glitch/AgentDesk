@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { camberBrainEnabled, getCamberBrainAgentTag } from "@/lib/brain/camber-brain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
-  const camberEnabled = camberBrainEnabled();
 
   return NextResponse.json({
     ok: true,
@@ -18,16 +16,13 @@ export async function GET() {
       sourceBackedErc8004Discovery: "complete",
       liveAgentAuditions: "complete-and-live-verified",
       fourCategoryDepth: "complete",
-      agentDeskBrain: "complete-with-deterministic-fallback",
+      agentDeskBrain: "complete",
       erc8183HiringFlow: "implementation-complete",
       productionHardening: "complete",
     },
     runtime: {
-      camberBrainEnabled: camberEnabled,
-      brainMode: camberEnabled ? "camber-remote-mcp-with-deterministic-fallback" : "deterministic-evidence-engine",
-      camberTransport: "https-remote-mcp",
-      camberAgentTag: getCamberBrainAgentTag(),
-      camberCredentialPresent: Boolean(process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim()),
+      analysis: "AgentDesk Brain",
+      proofBehavior: "evidence-bound",
     },
     openProofGates: {
       realExternalPaidErc8183Job: {

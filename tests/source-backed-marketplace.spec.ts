@@ -70,26 +70,64 @@ const discoveredAgents = [
 ];
 
 async function mockDiscovery(page: Page) {
-  await page.route("**/api/agents", async (route) => {
+  await page.route("**/api/discovery/stream", async (route) => {
+    const body = route.request().postDataJSON() as { task: { category: string; guardrails?: { maxPrice?: { amount: string; asset: string }; approvedProtocols?: string[]; actionPolicy?: string } } };
+    const summary = {
+      runId: "test-discovery-run", category: body.task.category, queryCount: 3, uniqueRegistryMatches: 2,
+      qualifiedCandidates: 2, ruleCompatibleCandidates: 2, shortlistedCandidates: 2, completedAuditions: 2,
+      startedAt: "2026-09-09T00:00:00.000Z", completedAt: "2026-09-09T00:00:01.000Z", sourceApis: ["https://api.8004scan.io/api/v1"],
+    };
+    const event = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`;
+    if (body.task.category !== "Yield Optimisation") {
+      await route.fulfill({ status: 200, contentType: "text/event-stream", body: event({ type: "search-started", runId: summary.runId, timestamp: summary.startedAt }) + event({ type: "warning", code: "no-candidates", userMessage: "No matching agents found for this task. Try adjusting your task or rules." }) + event({ type: "done", summary }) });
+      return;
+    }
+    if (body.task.guardrails?.maxPrice) {
+      expect(body.task.guardrails).toMatchObject({
+        maxPrice: { amount: "0.25", asset: "$U" }, approvedProtocols: ["Venus"], actionPolicy: "approval-required",
+      });
+    }
+    const task = body.task;
+    const baseResult = (tokenId: number, output: string, latencyMs: number, quote: { amount: string; asset: string } | null) => ({
+      candidate: { chainId: 56, tokenId, registry: "ERC-8004", registryAddress: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432", owner: tokenId === 171927 ? "0x2222222222222222222222222222222222222222" : "0x3333333333333333333333333333333333333333", agentWallet: null, sourceUrl: `https://8004scan.io/agents/bsc/${tokenId}` },
+      task, status: "completed", protocol: "A2A", latencyMs, checkedAt: "2026-09-08T22:20:00.000Z", quote,
+      output, evidence: [{ kind: "identity", source: "registry", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved identity" }, { kind: "agent-card", source: "card", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved A2A card" }, { kind: "service-response", source: "service", observedAt: "2026-09-08T22:20:00.000Z", summary: "Live response" }],
+      taskFit: { label: "PARTIAL FIT", reasons: ["Live task-specific response returned."], missingEvidence: ["Economic correctness not independently validated."] },
+      ruleEvaluation: { status: "fits", hardFailure: false, passedCount: 2, failedCount: 0, unknownCount: 0, checks: [{ id: "price", label: "Price", status: "pass", summary: "Within the stated limit" }, { id: "risk", label: "Risk", status: "pass", summary: "Matches the stated preference" }] },
+      comparison: { rank: tokenId === 171927 ? 1 : 2, label: tokenId === 171927 ? "BEST FIT" : "STRONG FIT", reasons: ["Completed the same live task-specific audition."] },
+    });
+    const best = baseResult(171927, '{"agentdesk":{"protocol":"Venus","riskLevel":"low","requiresExecution":false}}', 840, { amount: "0.01", asset: "BNB" });
+    const other = baseResult(6443, "Proposed a yield-farming route with current market assumptions.", 1220, null);
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        ok: true,
-        source: "8004scan",
-        chainId: 56,
-        provenance: { checkedAt: "2026-09-08T20:00:00.000Z" },
-        agents: discoveredAgents,
-      }),
+      contentType: "text/event-stream",
+      body: [
+        { type: "search-started", runId: summary.runId, timestamp: summary.startedAt },
+        { type: "search-complete", matches: 2, registryTotal: null, sourceApis: summary.sourceApis },
+        { type: "qualification-started", candidates: 2 }, { type: "qualification-complete", reachable: 2 },
+        { type: "rules-applied", suitable: 2 },
+        { type: "shortlist-ready", candidates: [discoveredAgents[1], discoveredAgents[2]], summary },
+        { type: "audition-started", tokenId: 171927 }, { type: "audition-started", tokenId: 6443 },
+        { type: "audition-complete", tokenId: 171927, status: "completed", latencyMs: 840 },
+        { type: "audition-complete", tokenId: 6443, status: "completed", latencyMs: 1220 },
+        { type: "comparison-started" }, { type: "comparison-ready", results: [best, other], summary }, { type: "done", summary },
+      ].map(event).join(""),
     });
   });
 }
 
 async function mockAuditions(page: Page) {
   await page.route("**/api/auditions", async (route) => {
-    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string } };
+    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string; guardrails?: { maxPrice?: { amount: string; asset: string }; approvedProtocols?: string[]; actionPolicy?: string } } };
     expect(body.task.category).toBe("Yield Optimisation");
     expect([171927, 6443]).toContain(body.tokenId);
+    if (body.task.guardrails?.maxPrice) {
+      expect(body.task.guardrails).toMatchObject({
+        maxPrice: { amount: "0.25", asset: "$U" },
+        approvedProtocols: ["Venus"],
+        actionPolicy: "approval-required",
+      });
+    }
 
     const tokenId = body.tokenId;
     const latencyMs = tokenId === 171927 ? 840 : 1220;
@@ -187,8 +225,6 @@ async function mockBrain(page: Page) {
           boundary: "Independent checks verify only reproducible BNB facts and deterministic scenario math.",
         },
         analysis: {
-          provider: "camber",
-          providerLabel: "AgentDesk Brain · powered by Camber",
           decision: "MIXED",
           headline: "The route has live token context, but the yield claim is still unresolved.",
           summary: "AgentDesk reproduced the token identity while preserving the APY as unverified.",
@@ -197,13 +233,8 @@ async function mockBrain(page: Page) {
           conflicts: [],
           watchouts: ["Pool existence does not prove future returns."],
           nextQuestion: "Can the agent provide a machine-readable protocol rate source?",
-          boundary: "Camber explains the supplied evidence but does not create proof.",
+          boundary: "AgentDesk Brain explains the supplied evidence but does not create proof.",
           generatedAt: "2026-09-09T00:20:01.000Z",
-        },
-        brain: {
-          camberConfigured: true,
-          camberAttempted: true,
-          proofBoundary: "Brain analysis explains existing evidence and never changes proof state.",
         },
       }),
     });
@@ -211,17 +242,16 @@ async function mockBrain(page: Page) {
 }
 
 async function openYieldCandidates(page: Page) {
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByRole("heading", { name: "Choose who should audition" })).toBeVisible();
-  await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
-  await expect(page.getByText("Mock Yield Runner")).toBeVisible();
-  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+  await page.getByLabel("What do you want an agent to do?").fill("Help me find a yield option for 500 USDC");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await expect(page.getByRole("heading", { name: "Tell us a little more." })).toBeVisible();
 }
 
 async function runYieldAudition(page: Page) {
   await openYieldCandidates(page);
-  await page.getByRole("button", { name: /Run auditions/i }).click();
-  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByRole("heading", { name: /Finding the right agents|Testing .*strong match/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
 }
 
 async function assertNoHorizontalOverflow(page: Page) {
@@ -240,12 +270,11 @@ test("guided marketplace is focused and legacy homepage clutter is gone", async 
   const response = await page.goto("/", { waitUntil: "networkidle" });
   expect(response?.status()).toBe(200);
 
-  await expect(page.getByRole("heading", { name: /don't trust the profile/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /What should the agent do/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Health monitor/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Yield optimiser/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Grid planner/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Rebalancer/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /What do you want an agent to do/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Protect" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Earn" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Trade" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Balance" })).toBeVisible();
   await expect(page.getByText("Prototype Wallet", { exact: true })).toHaveCount(0);
   await expect(page.getByText("HealthGuard AI", { exact: true })).toHaveCount(0);
   await expect(page.getByText("AI Assistant", { exact: true })).toHaveCount(0);
@@ -261,17 +290,23 @@ test("guided marketplace is focused and legacy homepage clutter is gone", async 
 
 test("task categories guide users to only matching registry candidates", async ({ page }) => {
   await mockDiscovery(page);
+  await mockAuditions(page);
   await page.goto("/", { waitUntil: "networkidle" });
 
-  await page.getByRole("button", { name: /Rebalancer/i }).click();
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText("Mock DeFi Matrix")).toBeVisible();
+  await page.getByRole("button", { name: "Earn" }).click();
+  await page.getByLabel("What do you want an agent to do?").fill("Find an option for 500 USDC");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
   await expect(page.getByText("Mock Venus Monitor")).toHaveCount(0);
 
-  await page.getByRole("button", { name: /Edit task/i }).click();
-  await page.getByRole("button", { name: /Grid planner/i }).click();
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText(/No source-qualified agent currently matches this category/i)).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Trade" }).click();
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText(/No matching agents found for this task/i)).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
@@ -281,38 +316,62 @@ test("live audition remains blind and shows one clear best result", async ({ pag
   await page.goto("/", { waitUntil: "networkidle" });
   await runYieldAudition(page);
 
-  await expect(page.getByText("Candidate A", { exact: true })).toBeVisible();
-  await expect(page.getByText("BEST FIT", { exact: true })).toBeVisible();
-  await expect(page.getByText("840 ms", { exact: true })).toBeVisible();
+  await expect(page.getByText("Mock DeFi Matrix", { exact: true })).toBeVisible();
   await expect(page.getByText("0.01 BNB", { exact: true })).toBeVisible();
-  await expect(page.getByText("Mock DeFi Matrix", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Trust Score", { exact: true })).toHaveCount(0);
-  await expect(page.getByText(/Only observable audition evidence is compared/i)).toBeVisible();
+  await expect(page.getByText(/The agent that performed best for your task/i)).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
-test("verification and Camber Brain stay behind an explicit verify action", async ({ page }) => {
+test("verification and AgentDesk Brain stay behind an explicit verify action", async ({ page }) => {
   await mockDiscovery(page);
   await mockAuditions(page);
   await mockBrain(page);
   await page.goto("/", { waitUntil: "networkidle" });
   await runYieldAudition(page);
 
-  await expect(page.getByLabel("Yield Optimisation depth analysis")).toHaveCount(0);
-  await page.getByRole("button", { name: "Verify result" }).click();
+  await page.getByRole("button", { name: /Check answer/i }).first().click();
   const depth = page.getByLabel("Yield Optimisation depth analysis").first();
   await expect(depth).toBeVisible();
   await depth.getByRole("button", { name: /Verify with live checks \+ Brain/i }).click();
 
   await expect(depth.getByText("MIXED EVIDENCE", { exact: true })).toBeVisible();
-  await expect(depth.getByText("AgentDesk Brain · powered by Camber", { exact: true })).toBeVisible();
+  await expect(depth.getByText("AgentDesk’s take", { exact: true })).toBeVisible();
+  await expect(depth.getByText(/Camber/i)).toHaveCount(0);
   await expect(depth.getByText(/APY remains unverified/i).first()).toBeVisible();
   await expect(depth.getByText(/does not create proof/i).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 
+test("Your rules stay compact until edited and persist through the guided flow", async ({ page }) => {
+  await mockDiscovery(page);
+  await mockAuditions(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await openYieldCandidates(page);
+
+  const rules = page.getByLabel("Your rules");
+  await expect(rules.getByText("Moderate risk · Any protocol", { exact: true })).toBeVisible();
+  await expect(rules.getByLabel("Risk preference")).toHaveCount(0);
+  await rules.getByRole("button", { name: "Edit" }).click();
+  await rules.getByRole("radio", { name: "Limit to a protocol" }).click();
+  await rules.getByLabel("Allowed protocol").fill("Venus");
+  await rules.getByLabel("Maximum hire price amount").fill("0.25");
+  await rules.getByRole("button", { name: "Done" }).click();
+  await expect(rules.getByText("Moderate risk · Max 0.25 $U", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText("Using your task + rules", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
+  await expect(page.getByText("Fits what we could confirm", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Check answer/i }).first().click();
+  await expect(page.getByText("Your rules", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Continue to hire/i }).click();
+  await expect(page.getByText("These are the rules this agent was tested against.", { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+});
+
 test("discovery failure stays truthful and never invents agents", async ({ page }) => {
-  await page.route("**/api/agents", async (route) => {
+  await page.route("**/api/discovery/stream", async (route) => {
     await route.fulfill({
       status: 502,
       contentType: "application/json",
@@ -321,8 +380,10 @@ test("discovery failure stays truthful and never invents agents", async ({ page 
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Find matching agents/i }).click();
-  await expect(page.getByText(/Live agent discovery is unavailable: upstream unavailable/i)).toBeVisible();
+  await page.getByLabel("What do you want an agent to do?").fill("Help me find yield");
+  await page.getByRole("button", { name: /Find the best agent/i }).click();
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText(/trouble searching the registry right now/i)).toBeVisible();
   await expect(page.getByText("GridMaster")).toHaveCount(0);
   await expect(page.getByText("RebalanceGuard")).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
