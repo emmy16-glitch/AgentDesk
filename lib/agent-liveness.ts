@@ -46,10 +46,12 @@ export async function probeService(service: AgentService): Promise<ServiceProbe>
     const latencyMs = Math.round(performance.now() - started);
     await response.body?.cancel().catch(() => undefined);
 
-    // A2A interaction paths are often POST-only. Any non-5xx HTTP response proves
-    // the public service host answered; the audition layer still decides whether
-    // its Agent Card and JSON-RPC flow are actually compatible.
-    const reachable = response.status >= 200 && response.status < 500;
+    // The purpose of this probe is host reachability, not correctness. A2A RPC
+    // paths are commonly POST-only and can answer GET with 404/405/5xx while the
+    // host itself is live. Any HTTP response proves the host answered. The real
+    // audition is responsible for deciding whether the Agent Card / JSON-RPC
+    // task flow actually works.
+    const reachable = response.status >= 100 && response.status <= 599;
 
     return {
       name: service.name,
@@ -59,10 +61,10 @@ export async function probeService(service: AgentService): Promise<ServiceProbe>
       latencyMs,
       checkedAt,
       reason: reachable
-        ? response.status >= 400
-          ? `The advertised host responded with HTTP ${response.status}. Host reachability is confirmed; task compatibility still requires a live audition.`
-          : "The advertised HTTP service responded. This proves reachability only, not task quality or correctness."
-        : `The advertised path responded with HTTP ${response.status}.`,
+        ? response.ok
+          ? "The advertised HTTP service responded. This proves reachability only, not task quality or correctness."
+          : `The advertised host responded with HTTP ${response.status}. Host reachability is confirmed; task compatibility still requires a live audition.`
+        : `The advertised path returned an invalid HTTP status (${response.status}).`,
     };
   } catch (error) {
     const latencyMs = Math.round(performance.now() - started);
