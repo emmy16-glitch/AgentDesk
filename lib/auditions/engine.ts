@@ -39,9 +39,22 @@ function explainTaskFit(result: {
   return { label: "NOT ENOUGH EVIDENCE", reasons, missingEvidence };
 }
 
+function normalizeServiceName(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 function isA2AServiceName(name: string): boolean {
-  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const normalized = normalizeServiceName(name);
   return normalized === "a2a" || normalized.startsWith("a2a");
+}
+
+function isAgentCardServiceName(name: string): boolean {
+  const normalized = normalizeServiceName(name);
+  return normalized === "agentcard" || normalized.endsWith("agentcard");
+}
+
+function hasUnresolvedTemplate(endpoint: string): boolean {
+  return /\{[^{}]+\}/.test(endpoint);
 }
 
 export async function runAudition(request: AuditionRequest): Promise<AuditionResult> {
@@ -106,7 +119,17 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     };
   }
 
-  const execution = await auditionA2AService(a2aService, request.task);
+  // Some registrations publish the interaction endpoint and the protocol-standard
+  // Agent Card as separate services. Prefer that explicit concrete card while the
+  // card remains authoritative for the JSON-RPC interaction target.
+  const explicitAgentCard = identity.services.find((service) =>
+    isAgentCardServiceName(service.name) && !hasUnresolvedTemplate(service.endpoint),
+  );
+  const auditionService = explicitAgentCard
+    ? { ...a2aService, endpoint: explicitAgentCard.endpoint }
+    : a2aService;
+
+  const execution = await auditionA2AService(auditionService, request.task);
   const taskFit = explainTaskFit({
     status: execution.status,
     latencyMs: execution.latencyMs,
