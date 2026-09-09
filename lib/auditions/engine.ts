@@ -1,5 +1,6 @@
 import { resolveOnChainAgentIdentity } from "@/lib/erc8004-registry";
 import { auditionA2AService } from "@/lib/auditions/a2a";
+import { containsUnresolvedUrlTemplate } from "@/lib/network-safety";
 import type { AuditionEvidence, AuditionRequest, AuditionResult, TaskFitExplanation } from "@/lib/auditions/types";
 
 function explainTaskFit(result: {
@@ -39,9 +40,18 @@ function explainTaskFit(result: {
   return { label: "NOT ENOUGH EVIDENCE", reasons, missingEvidence };
 }
 
+function normalizeServiceName(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 function isA2AServiceName(name: string): boolean {
-  const normalized = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const normalized = normalizeServiceName(name);
   return normalized === "a2a" || normalized.startsWith("a2a");
+}
+
+function isAgentCardServiceName(name: string): boolean {
+  const normalized = normalizeServiceName(name);
+  return normalized === "agentcard" || normalized.endsWith("agentcard");
 }
 
 export async function runAudition(request: AuditionRequest): Promise<AuditionResult> {
@@ -94,7 +104,17 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     };
   }
 
-  const execution = await auditionA2AService(a2aService, request.task);
+  // Some providers advertise the interaction endpoint and the protocol-standard Agent
+  // Card as separate ERC-8004 services. Prefer that explicit card when it is concrete;
+  // the card itself remains authoritative for the JSON-RPC interaction URL.
+  const explicitAgentCard = identity.services.find((service) =>
+    isAgentCardServiceName(service.name) && !containsUnresolvedUrlTemplate(service.endpoint),
+  );
+  const auditionService = explicitAgentCard
+    ? { ...a2aService, endpoint: explicitAgentCard.endpoint }
+    : a2aService;
+
+  const execution = await auditionA2AService(auditionService, request.task);
   const taskFit = explainTaskFit({
     status: execution.status,
     latencyMs: execution.latencyMs,
