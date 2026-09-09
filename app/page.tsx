@@ -18,6 +18,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [registryOpen, setRegistryOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -69,19 +70,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      <details className="clean-registry" id="agents">
+      <details className="clean-registry" id="agents" onToggle={(event) => setRegistryOpen(event.currentTarget.open)}>
         <summary>
           Browse the live ERC-8004 registry
           <span>{loading ? "Loading…" : error ? "Discovery unavailable" : `${agents.length} source-qualified records${checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString()}` : ""}`}</span>
         </summary>
-        <div className="clean-registry-list">
+        {registryOpen ? <div className="clean-registry-list">
           {error ? <div className="clean-error">{error}</div> : null}
           {!error && agents.slice(0, 12).map((agent) => <div className="clean-registry-row" key={`${agent.chainId}:${agent.tokenId}`}>
             <strong>{agent.name}</strong>
             <span>#{agent.tokenId} · {agent.categories[0] || "Unclassified"}</span>
             <a href={agent.sourceUrl} target="_blank" rel="noreferrer">Source <ExternalLink size={12} /></a>
           </div>)}
-        </div>
+        </div> : null}
       </details>
     </main>
   </div>;
