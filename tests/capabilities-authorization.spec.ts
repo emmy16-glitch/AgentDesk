@@ -14,6 +14,7 @@ const paidPolicy: HireCapabilityPolicy = {
   approvedPaidTools: ["cournot", "telegraph"],
   maxToolSpend: { amount: "0.25", asset: "$U" },
   execution: "approval-required",
+  permissionDurationDays: 7,
 };
 
 test("default hire capabilities keep paid intelligence off", () => {
@@ -23,6 +24,7 @@ test("default hire capabilities keep paid intelligence off", () => {
     paidIntelligence: false,
     approvedPaidTools: [],
     execution: "approval-required",
+    permissionDurationDays: 7,
   });
 });
 
@@ -33,6 +35,7 @@ test("paid intelligence must declare an approved tool and bounded spend", () => 
     paidIntelligence: true,
     approvedPaidTools: ["cournot"],
     execution: "approval-required",
+    permissionDurationDays: 7,
   })).toBeNull();
 
   expect(parseHireCapabilityPolicy({
@@ -42,7 +45,14 @@ test("paid intelligence must declare an approved tool and bounded spend", () => 
     approvedPaidTools: [],
     maxToolSpend: { amount: "0.10", asset: "$U" },
     execution: "approval-required",
+    permissionDurationDays: 7,
   })).toBeNull();
+});
+
+test("permission duration only accepts the bounded supported windows", () => {
+  expect(parseHireCapabilityPolicy({ ...paidPolicy, permissionDurationDays: 14 })).toBeNull();
+  expect(parseHireCapabilityPolicy({ ...paidPolicy, permissionDurationDays: 1 })?.permissionDurationDays).toBe(1);
+  expect(parseHireCapabilityPolicy({ ...paidPolicy, permissionDurationDays: 30 })?.permissionDurationDays).toBe(30);
 });
 
 test("capability commitment changes when the user's permissions change", () => {
@@ -50,6 +60,7 @@ test("capability commitment changes when the user's permissions change", () => {
   const on = paidPolicy;
   expect(hashHireCapabilityPolicy(off)).not.toBe(hashHireCapabilityPolicy(on));
   expect(hashHireCapabilityPolicy(on)).toBe(hashHireCapabilityPolicy({ ...on, approvedPaidTools: ["telegraph", "cournot"] }));
+  expect(hashHireCapabilityPolicy(on)).not.toBe(hashHireCapabilityPolicy({ ...on, permissionDurationDays: 30 }));
 });
 
 test("an approved Cournot call within the user budget can pass policy preflight", () => {
@@ -75,7 +86,7 @@ test("an unapproved paid tool is blocked", () => {
   expect(result.executable).toBe(false);
 });
 
-test("paid tool calls above the task budget are blocked", () => {
+test("paid tool calls above the per-call cap are blocked", () => {
   const result = evaluateCapabilityProposal(paidPolicy, {
     kind: "paid-tool-call",
     toolId: "cournot",
