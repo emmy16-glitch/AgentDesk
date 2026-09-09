@@ -1,5 +1,8 @@
 # Dependency Security Status
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 Checked during final hackathon hardening on 2026-09-09.
 
 ## Completed
@@ -10,6 +13,7 @@ Checked during final hackathon hardening on 2026-09-09.
 - GitHub Actions checkout/setup-node moved from v4 to v5.
 - CI now runs `npm audit --omit=dev --audit-level=critical` before the build and fails if a critical runtime advisory is introduced.
 - Dependabot is enabled for npm and GitHub Actions maintenance.
+- The production application is publicly available at `https://agentdesk-bnb-eight.vercel.app/`.
 
 ## Remaining inherited advisories
 
