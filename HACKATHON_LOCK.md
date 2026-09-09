@@ -1,10 +1,14 @@
 # AgentDesk — Hackathon Product Lock
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
 > Status: **LOCKED**
 >
 > This document is the source of truth for the BNB Chain hackathon build. Any new code, UI, copy, demo flow, or integration must support this direction. Do not replace it with a generic AI-agent marketplace, a static directory, or fabricated trust metrics.
 >
-> Implementation note (2026-09-08): the original fabricated `data/agents.ts` catalogue and its judge-facing card/detail/hire surfaces have been removed from the active source tree. Real discovery now begins from ERC-8004 / BSC sources. The legacy `AgentTrustMarketplace` contract remains prototype infrastructure only.
+> Implementation note (2026-09-09): the fabricated `data/agents.ts` catalogue and its judge-facing card/detail/hire surfaces are not part of the active marketplace. Real discovery begins from ERC-8004 / BSC sources. The public AgentDesk build is live on Vercel. The legacy `AgentTrustMarketplace` contract remains prototype infrastructure only.
 
 ## Product thesis
 
@@ -12,11 +16,11 @@
 
 Primary line:
 
-> **Don't trust the profile. Audition the agent.**
+> **Don't trust the listing. Test the agent.**
 
 Supporting line:
 
-> Discover live BNB agents. Audition them on your task. Compare real results. Hire the winner on-chain.
+> Give AgentDesk the job. Find relevant agents. Test what they actually return. Check the evidence. Then decide who to hire.
 
 ## What problem we are solving
 
@@ -30,10 +34,30 @@ The product must therefore combine:
 
 1. real BSC agent identity/discovery;
 2. current, decision-quality agent data;
-3. task-specific auditions or quotes;
+3. task-specific auditions, results or capability responses;
 4. transparent comparison;
 5. a real on-chain hire/job path;
 6. delivery/result visibility.
+
+## Current public truth state
+
+The production marketplace is live at:
+
+https://agentdesk-bnb-eight.vercel.app/
+
+The current production Grid Trading recording reached a **LIVE CAPABILITY MATCH** and then continued to Hire.
+
+That state means a live agent confirmed it could provide the requested service. It does **not** mean the task was completed, a trade was executed, money moved, or a paid ERC-8183 job completed.
+
+```text
+Capability confirmed
+≠ Task completed
+≠ Agent hired
+≠ Job funded
+≠ Paid job completed
+```
+
+This distinction is part of the product's evidence model and must remain visible in copy, UI, demos and submission material.
 
 ## Hackathon alignment
 
@@ -41,19 +65,20 @@ The main build must optimize for the published marketplace criteria:
 
 ### Functionality
 
-The complete flow must work:
+The complete intended flow is:
 
 ```text
 LAND
 → DESCRIBE / SELECT A TASK
 → DISCOVER RELEVANT LIVE AGENTS
-→ AUDITION / QUOTE
+→ TEST / AUDITION
 → COMPARE
+→ CHECK EVIDENCE
 → HIRE
 → RECEIVE / VERIFY RESULT
 ```
 
-No dead-end cards. No fake hire completion. A successful demo must show a complete user journey.
+No dead-end cards. No fake hire completion. A demo must show only the states the real system actually reaches.
 
 ### Data quality
 
@@ -70,6 +95,7 @@ Allowed examples:
 - live response latency;
 - current quote / price;
 - audition output;
+- capability/service response;
 - quote expiry;
 - actual completed job evidence;
 - timestamp / "checked X seconds ago".
@@ -84,7 +110,7 @@ Not allowed unless backed by a real source:
 - fake completed-job counts;
 - fabricated APY/performance data.
 
-If data cannot be proven, remove it or label it clearly as sample/demo data.
+If data cannot be proven, remove it or label the boundary clearly.
 
 ### Agent diversity
 
@@ -95,21 +121,23 @@ All four required categories must be first-class product experiences, not cosmet
 3. Grid Trading
 4. Rebalancing
 
-Each category must have meaningful discovery data and a task-specific audition/decision surface.
+Each category must have meaningful discovery data and a task-specific decision/evidence surface.
 
-## Core differentiator: Live Agent Auditions
+## Core differentiator: Live Agent Testing
 
 AgentDesk must not differentiate itself with a generic "trust score".
 
-The differentiator is **task-specific auditioning**.
+The differentiator is **task-specific testing before hire**.
 
-A profile answers:
+A listing answers:
 
-> Is this generally a reputable agent?
+> What does this agent claim it can do?
 
-An audition answers:
+A live test answers:
 
-> Is this agent a good choice for my exact task right now?
+> What did this agent actually return for my task right now?
+
+The result can be a genuine task result, a capability/service offer, an unsupported response, a timeout, or an error. Those states must stay distinct.
 
 ### Example user journey
 
@@ -119,13 +147,13 @@ User: "I have 500 USDC. Find a good BNB Chain yield strategy."
 AgentDesk
 → discovers eligible live agents
 → filters by required capability
-→ requests a bounded read-only audition / quote
+→ requests a bounded read-only audition / capability check
 → gathers comparable outputs
 → displays provenance and freshness
 → explains why candidates rank differently
-→ user hires the selected agent
-→ real job / payment path executes
-→ result is surfaced back to the user
+→ user chooses whether to hire the selected agent
+→ ERC-8183 job / payment path begins only after confirmation
+→ result is surfaced when real delivery evidence exists
 ```
 
 ## Category audition contracts
@@ -174,7 +202,7 @@ User supplies:
 
 Audition should surface, where supported:
 
-- proposed grid parameters;
+- proposed grid parameters or service capability;
 - assumptions;
 - supported venue;
 - expected fees / quote;
@@ -201,20 +229,22 @@ Audition should surface, where supported:
 
 The source of truth is **not** a static local agent catalogue.
 
-Target architecture:
+Target/current architecture:
 
 ```text
 ERC-8004 / 8004scan / BSC agent sources
               ↓
-      AgentDesk discovery index
+      AgentDesk discovery layer
               ↓
-category + capability + network + reputation
+category + capability + network + provenance
               ↓
-         live audition layer
+         live testing layer
        /         |          \
   Agent A     Agent B     Agent C
        \         |          /
              compare
+                ↓
+              check
                 ↓
               hire
                 ↓
@@ -225,7 +255,7 @@ category + capability + network + reputation
 
 ### Discovery rules
 
-- Only present agents as live/real when their BSC identity or endpoint can be verified.
+- Only present agents as live/real when the exact supporting state is available.
 - Store and show source identifiers.
 - Preserve raw source data separately from derived ranking data.
 - Every derived field must be explainable.
@@ -240,11 +270,10 @@ A Task Fit result must be explainable with factors such as:
 ```text
 ✓ required capability supported
 ✓ correct BSC network / identity
-✓ endpoint live
-✓ recent relevant activity
-✓ price within user budget
-✓ recent reputation evidence
-✓ audition completed successfully
+✓ endpoint/service reachable
+✓ price within user budget when a real quote exists
+✓ relevant source/reputation evidence when available
+✓ live task response or capability response returned
 ✓ response fresh enough for this task
 ```
 
@@ -259,13 +288,13 @@ If a numerical score is ever used, the formula and inputs must be inspectable.
 
 ## Hiring / commerce lock
 
-The current custom `AgentTrustMarketplace.hireAgent()` contract is a prototype activation mechanism. It must **not** be represented as proof that an actual external agent performed a job unless that is genuinely true.
+The custom `AgentTrustMarketplace.hireAgent()` contract is prototype activation infrastructure. It must **not** be represented as proof that an actual external agent performed a job unless that is genuinely true.
 
 Target hiring path:
 
 ```text
 candidate selected
-→ current quote confirmed
+→ current provider terms confirmed
 → real agent job / commerce request
 → wallet approval / funding
 → on-chain job reference
@@ -276,13 +305,13 @@ candidate selected
 
 Use the native BNB Agent Studio / ERC-8183 commerce path where practical.
 
-The existing custom contract can remain for compatibility, experimentation, analytics, referral events, or fallback demo infrastructure, but must not be confused with real agent-service delivery.
+The existing custom contract can remain for compatibility, experimentation, analytics, referral events, or historical prototype context, but must not be confused with real agent-service delivery.
 
 ## ERC-8004 lock
 
 ERC-8004 is not a marketing badge.
 
-If the UI says an agent is ERC-8004-backed or verified, AgentDesk must be able to show the actual identity / source reference.
+If the UI says an agent has ERC-8004 identity evidence, AgentDesk must be able to show the actual identity / source reference.
 
 Required direction:
 
@@ -294,11 +323,11 @@ Required direction:
 
 ## Static catalogue status
 
-The original `data/agents.ts` seed catalogue has been **removed from the active source tree**.
+The original `data/agents.ts` seed catalogue is not part of the active marketplace path.
 
 The old hard-coded trust scores, user counts, uptime, performance duration and generic verification flags must not be recreated in judge-facing code unless a real source supports the exact claim.
 
-Historical prototype concepts belong in git history, not as importable marketplace inventory.
+Historical prototype concepts belong in git history, not as marketplace inventory presented as live truth.
 
 ## UX lock
 
@@ -317,7 +346,11 @@ Protocol details belong in:
 - transaction details;
 - developer / advanced views.
 
-The primary UX is task-first.
+The primary UX is task-first:
+
+```text
+Ask → Details → Test → Best Match → Check → Hire
+```
 
 ## Comparison surface
 
@@ -330,12 +363,12 @@ Candidate comparison may include:
 | Agent identity | real source / ID |
 | Network | BSC / supported chain |
 | Capability match | evidence-backed |
-| Endpoint status | live check |
-| Audition result | current task-specific output |
-| Quote / price | current value |
+| Endpoint/service status | live check |
+| Test result | current task-specific output or clearly labelled capability response |
+| Quote / price | current value when genuinely supplied |
 | Response latency | measured |
-| Reputation | sourced |
-| Last activity | sourced |
+| Reputation | sourced where available |
+| Last activity | sourced where available |
 | Data freshness | timestamp |
 | Why ranked here | explainable reasons |
 
@@ -346,21 +379,25 @@ These are non-negotiable.
 Do not claim:
 
 - 200K+ agents are directly integrated unless actually discovered/usable;
-- an agent was hired if only our activation registry was called;
-- an agent performed a task if no result was returned;
+- an agent was hired if only prototype activation occurred;
+- an agent performed a task when it only confirmed capability;
+- a trade was executed when no trade occurred;
+- money moved when it did not;
 - a metric is live when it is static;
 - a trust score is objective when it is internally invented;
 - ERC-8004 verification without a real identity/source;
-- ERC-8183 commerce without a genuine job flow;
+- ERC-8183 commerce completion without a genuine completed job flow;
 - production readiness without evidence.
 
 Preferred language:
 
-- "live BSC agent" only when verified;
-- "audition" only when a real request/check was executed;
-- "sample" when using demonstration data;
-- "prototype activation" for the current custom contract;
-- "task fit" for explainable ranking.
+- "registry listed" when that is the evidence;
+- "endpoint/service reachable" when reachability is the evidence;
+- "live capability confirmed" for a real capability/service response;
+- "task result" only when a task-specific result was actually returned;
+- "task fit" for explainable ranking;
+- "funded" only for a funded job;
+- "completed" only when the actual paid-job completion state/evidence supports it.
 
 ## Build order
 
@@ -391,23 +428,25 @@ Preferred language:
 
 - task-first home flow;
 - candidate shortlist;
-- side-by-side comparison;
+- comparison;
 - freshness/provenance UI;
-- clear winner recommendation without hiding evidence.
+- clear recommendation without hiding evidence.
 
-### Phase 4 — Real hire
+### Phase 4 — Real hire implementation
 
-- implement at least one true ERC-8183 / Agent Studio job end-to-end;
-- wallet approval;
-- job reference;
-- delivery/result;
-- completion proof.
+- implement the ERC-8183 / Agent Studio job path;
+- wallet approval/funding controls;
+- job reference/state;
+- delivery/result verification;
+- completion proof boundary.
+
+The implementation exists. A genuine external paid completion remains a separate live proof gate and must not be fabricated.
 
 ### Phase 5 — Four-category depth
 
 - ensure every required category has a meaningful working path;
 - remove cosmetic-only categories;
-- add category-specific task forms and audition outputs.
+- add category-specific task forms and evidence checks.
 
 ### Phase 6 — Production/judge hardening
 
@@ -420,6 +459,8 @@ Preferred language:
 - reproducible demo script;
 - README/docs updated to current reality.
 
+**Status:** public production deployment is live at `https://agentdesk-bnb-eight.vercel.app/`.
+
 ### Phase 7 — Optional partner tracks
 
 Only after the main marketplace path is strong:
@@ -428,21 +469,20 @@ Only after the main marketplace path is strong:
 - TermiX Agent Advantage evidence/report;
 - PancakeSwap-specific measurable benefit.
 
-Do not weaken the main track by implementing several incomplete bounty integrations.
+Do not claim these optional partner requirements as complete unless their actual required evidence exists.
 
 ## Demo lock
 
-The final demo should prove this exact story:
+The demo should prove the strongest truthful story the live system actually reaches:
 
 ```text
 1. User states a real task
-2. AgentDesk discovers live BSC agents
-3. Multiple candidates are auditioned / checked
-4. Results are compared using current evidence
-5. User sees why one agent is the best fit
-6. User hires it through a real on-chain job path
-7. Agent returns a result / deliverable
-8. AgentDesk shows proof, source, and transaction/job reference
+2. AgentDesk discovers relevant BSC agents
+3. Compatible candidates are tested
+4. Results/capability responses are compared using current evidence
+5. User sees what is proven and what is still missing
+6. User can continue toward Hire
+7. Paid-job execution/completion is shown only when it genuinely exists
 ```
 
 Do not make the demo primarily about:
@@ -459,7 +499,9 @@ Primary product name: **AgentDesk**
 
 Repository: `emmy16-glitch/AgentDesk`
 
-Do not switch between AgentTrust / AgentDesk in judge-facing product copy unless we intentionally decide to rename the product and update the repository consistently.
+Public product: `https://agentdesk-bnb-eight.vercel.app/`
+
+Do not switch between AgentTrust / AgentDesk in judge-facing product copy unless there is an intentional product rename and the repository is updated consistently.
 
 ## Final positioning
 
@@ -469,11 +511,11 @@ Do not switch between AgentTrust / AgentDesk in judge-facing product copy unless
 
 ### Product tagline
 
-> **Don't trust the profile. Audition the agent.**
+> **Don't trust the listing. Test the agent.**
 
 ### Expanded pitch
 
-> AgentDesk discovers live BNB agents, tests them against the user's specific task, compares fresh evidence and quotes, explains why each candidate fits, and lets the user hire the selected agent on-chain. Instead of asking users to trust a static profile or unexplained score, AgentDesk makes the hiring decision observable and task-specific.
+> AgentDesk starts with the user's task, discovers relevant BNB agents, tests compatible candidates on that task, compares fresh evidence, checks what can be independently reproduced, and lets the user decide who to hire. Instead of asking users to trust a static listing or unexplained score, AgentDesk makes the selection decision observable and task-specific.
 
 ## Change-control rule
 
@@ -482,7 +524,7 @@ This file is intentionally strict.
 Before adding a major feature, ask:
 
 1. Does it improve functionality, data quality, or four-category depth?
-2. Does it make the discovery → audition → compare → hire → result flow stronger?
+2. Does it make the discovery → test → compare → check → hire → result flow stronger?
 3. Is every claim provable?
 4. Would this make sense in an official BNB Agent Studio marketplace?
 
