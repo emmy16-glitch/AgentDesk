@@ -104,7 +104,7 @@ wallet provider advertised
 
 ## Auctorail
 
-Auctorail is integrated as an optional policy-only preflight adapter.
+AgentDesk uses Auctorail only as an optional **policy decision layer**.
 
 When configured, AgentDesk may send a bounded proposal to Auctorail's `/api/authorize` endpoint using:
 
@@ -112,9 +112,9 @@ When configured, AgentDesk may send a bounded proposal to Auctorail's `/api/auth
 mode = policy
 ```
 
-The AgentDesk adapter deliberately does **not** request Auctorail `mode=live`. Therefore this integration does not itself buy Telegraph/x402 evidence and does not return executable authority.
+The adapter deliberately does **not** request `mode=live`, does not import an Auctorail chain executor, does not buy Telegraph/x402 evidence during review, and does not receive executable authority.
 
-The API response remains:
+The policy response remains:
 
 ```text
 ALLOW | HOLD | BLOCK
@@ -122,19 +122,15 @@ ALLOW | HOLD | BLOCK
 
 with `executable: false`.
 
-This keeps the correct Auctorail security principle:
+This keeps the authorization principle simple:
 
 ```text
-application asks for authority
+application asks whether an action fits policy
 ≠
-application creates authority
+application receives a wallet signature or executes it
 ```
 
-### Current proof boundary
-
-The existing Auctorail repository has protected execution proof on Base Sepolia. AgentDesk must not claim that Auctorail currently enforces BSC agent transactions unless a BNB-compatible Auctorail executor is separately deployed and proven.
-
-For production BNB enforcement, authoritative Mandates, signing authority, replay protection and protected credentials must remain on the trusted Auctorail side or an equivalent wallet-policy system.
+There is no Auctorail chain-execution claim in AgentDesk. Auctorail contributes the policy model only; ERC-8183 hiring and any separate wallet/provider enforcement keep their own proof boundaries.
 
 ## Local AgentDesk preflight
 
@@ -174,6 +170,6 @@ Capabilities are permissions, not proof.
 
 Paid intelligence is a tool, not authority.
 
-Auctorail/agent-wallet policy is an authorization boundary, not a claim that an action executed.
+Auctorail policy is an authorization decision layer, not a claim that an action executed.
 
 ERC-8183 funding is not job completion.
