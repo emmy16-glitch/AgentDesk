@@ -1,19 +1,21 @@
-name: Inspect remaining dependency advisories
+name: Apply non-breaking npm security fixes
 
 on:
   push:
     branches: [security/next-lts-hardening]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  fix:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: security/next-lts-hardening
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -24,8 +26,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Full audit detail
-        run: npm audit || true
+      - name: Apply npm audit fix without breaking upgrades
+        run: npm audit fix
 
-      - name: Runtime-only audit detail
+      - name: Report remaining runtime advisories
         run: npm audit --omit=dev || true
+
+      - name: Commit safe lockfile fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No non-breaking audit changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: apply non-breaking npm security fixes"
+          git push origin HEAD:security/next-lts-hardening
