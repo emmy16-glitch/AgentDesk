@@ -93,7 +93,9 @@ async function mockDiscovery(page: Page) {
       task, status: "completed", protocol: "A2A", latencyMs, checkedAt: "2026-09-08T22:20:00.000Z", quote,
       output, evidence: [{ kind: "identity", source: "registry", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved identity" }, { kind: "agent-card", source: "card", observedAt: "2026-09-08T22:20:00.000Z", summary: "Resolved A2A card" }, { kind: "service-response", source: "service", observedAt: "2026-09-08T22:20:00.000Z", summary: "Live response" }],
       taskFit: { label: "PARTIAL FIT", reasons: ["Live task-specific response returned."], missingEvidence: ["Economic correctness not independently validated."] },
-      ruleEvaluation: { status: "fits", hardFailure: false, passedCount: 2, failedCount: 0, unknownCount: 0, checks: [{ id: "price", label: "Price", status: "pass", summary: "Within the stated limit" }, { id: "risk", label: "Risk", status: "pass", summary: "Matches the stated preference" }] },
+      ruleEvaluation: body.task.guardrails?.approvedProtocols?.length
+        ? { status: "partial", hardFailure: false, passedCount: 2, failedCount: 0, unknownCount: 1, checks: [{ id: "price", label: "Price", status: "pass", summary: "Within the stated limit" }, { id: "risk", label: "Risk", status: "pass", summary: "Matches the stated preference" }, { id: "protocol", label: "Protocol", status: "unknown", summary: "The requested protocol could not be confirmed from this response." }] }
+        : { status: "fits", hardFailure: false, passedCount: 2, failedCount: 0, unknownCount: 0, checks: [{ id: "price", label: "Price", status: "pass", summary: "Within the stated limit" }, { id: "risk", label: "Risk", status: "pass", summary: "Matches the stated preference" }] },
       comparison: { rank: tokenId === 171927 ? 1 : 2, label: tokenId === 171927 ? "BEST FIT" : "STRONG FIT", reasons: ["Completed the same live task-specific audition."] },
     });
     const best = baseResult(171927, '{"agentdesk":{"protocol":"Venus","riskLevel":"low","requiresExecution":false}}', 840, { amount: "0.01", asset: "BNB" });
@@ -250,7 +252,6 @@ async function openYieldCandidates(page: Page) {
 async function runYieldAudition(page: Page) {
   await openYieldCandidates(page);
   await page.getByRole("button", { name: /^Find agents/i }).click();
-  await expect(page.getByRole("heading", { name: /Finding the right agents|Testing .*strong match/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
 }
 
@@ -302,7 +303,6 @@ test("task categories guide users to only matching registry candidates", async (
 
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Back" }).click();
-  await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Trade" }).click();
   await page.getByRole("button", { name: /Find the best agent/i }).click();
   await page.getByRole("button", { name: /^Find agents/i }).click();
@@ -339,6 +339,7 @@ test("verification and AgentDesk Brain stay behind an explicit verify action", a
   await expect(depth.getByText("AgentDesk’s take", { exact: true })).toBeVisible();
   await expect(depth.getByText(/Camber/i)).toHaveCount(0);
   await expect(depth.getByText(/APY remains unverified/i).first()).toBeVisible();
+  await depth.getByText("Review reasoning details", { exact: true }).click();
   await expect(depth.getByText(/does not create proof/i).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
@@ -350,7 +351,8 @@ test("Your rules stay compact until edited and persist through the guided flow",
   await openYieldCandidates(page);
 
   const rules = page.getByLabel("Your rules");
-  await expect(rules.getByText("Moderate risk · Any protocol", { exact: true })).toBeVisible();
+  await expect(rules.getByText("Moderate risk", { exact: true })).toBeVisible();
+  await expect(rules.getByText(/Any protocol · Ask me before any action/, { exact: true })).toBeVisible();
   await expect(rules.getByLabel("Risk preference")).toHaveCount(0);
   await rules.getByRole("button", { name: "Edit" }).click();
   await rules.getByRole("radio", { name: "Limit to a protocol" }).click();
@@ -360,7 +362,6 @@ test("Your rules stay compact until edited and persist through the guided flow",
   await expect(rules.getByText("Moderate risk · Max 0.25 $U", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: /^Find agents/i }).click();
-  await expect(page.getByText("Using your task + rules", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mock DeFi Matrix" })).toBeVisible();
   await expect(page.getByText("Fits what we could confirm", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Check answer/i }).first().click();

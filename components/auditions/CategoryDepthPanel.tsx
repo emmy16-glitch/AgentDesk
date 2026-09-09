@@ -125,7 +125,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
 
     {analysis ? <section className={`brain-analysis ${decisionClass(analysis.decision)}`} aria-label="AgentDesk Brain analysis">
       <div className="brain-analysis-heading">
-        <div><BrainCircuit size={17} /><span><strong>AgentDesk&apos;s take</strong><small>{analysis.decision}</small></span></div>
+        <div><BrainCircuit size={17} /><span><strong>AgentDesk’s take</strong><small>{analysis.decision}</small></span></div>
       </div>
       <h5>{analysis.headline}</h5>
       <p className="brain-summary">{analysis.summary}</p>
