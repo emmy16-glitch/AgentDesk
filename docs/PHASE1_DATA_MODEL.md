@@ -1,5 +1,8 @@
 # Phase 1 — Discovery and evidence model
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 Status: active implementation source of truth for Phase 1.
 
 AgentDesk must never collapse registration, metadata, reachability and task quality into one vague "verified" label.
