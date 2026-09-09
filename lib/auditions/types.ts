@@ -4,6 +4,7 @@ import type { AgentWalletAdvertisement } from "@/lib/agent-wallets/types";
 
 export type AuditionStatus = "completed" | "unsupported" | "timeout" | "error";
 export type TaskFitLabel = "BEST FIT" | "STRONG FIT" | "PARTIAL FIT" | "NOT ENOUGH EVIDENCE";
+export type AuditionResponseKind = "task-result" | "capability-offer";
 
 interface BaseAuditionTask {
   category: MarketplaceCategory;
@@ -92,6 +93,8 @@ export interface AuditionResult {
   checkedAt: string;
   quote: AuditionQuote | null;
   output: string | null;
+  /** Separates a completed task output from a pre-hire service/capability offer. */
+  responseKind?: AuditionResponseKind;
   evidence: AuditionEvidence[];
   taskFit: TaskFitExplanation;
   error?: string;
