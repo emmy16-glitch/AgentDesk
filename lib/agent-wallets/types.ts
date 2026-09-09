@@ -1,3 +1,4 @@
+import type { HireCapabilityPolicy } from "@/lib/capabilities/types";
 import type { TaskGuardrails } from "@/lib/guardrails/types";
 
 export type AgentWalletProviderKind = "turnkey" | "twak" | "altana" | "evm" | "unknown";
@@ -32,10 +33,10 @@ export interface AgentWalletProviderProfile {
 }
 
 /**
- * A provider-neutral description of the user's task boundary that can be
- * handed to an agent-side wallet/policy system. It is not itself a Turnkey
- * policy and must never be labelled as enforced until the provider supplies
- * independent evidence of enforcement.
+ * A provider-neutral description of the user's task and execution boundary
+ * that can be handed to an agent-side wallet/policy system. It is not itself
+ * a Turnkey/TWAK/Altana policy and must never be labelled as enforced until
+ * the provider supplies independent evidence of enforcement.
  */
 export interface AgentWalletPolicyRequest {
   version: "agentdesk-agent-wallet-policy-v1";
@@ -47,4 +48,6 @@ export interface AgentWalletPolicyRequest {
   maxPrice?: TaskGuardrails["maxPrice"];
   approvedProtocols: string[];
   humanApprovalRequiredForExecution: boolean;
+  /** Final-hire capability permissions selected by the user, if supplied. */
+  hireCapabilities?: HireCapabilityPolicy;
 }
