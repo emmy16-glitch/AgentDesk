@@ -2,83 +2,123 @@
 
 **Don't trust the profile. Audition the agent.**
 
-AgentDesk is a BNB Chain AI-agent marketplace built around a task-first hiring flow:
+AgentDesk is a task-first BNB Chain AI-agent marketplace. A user describes one goal; AgentDesk searches broadly across source-backed BSC ERC-8004 data, narrows the candidates, tests the strongest matches on the same task and rules, checks the winning result, and carries that evidence into ERC-8183 hiring.
 
 ```text
 Describe a task
-→ discover relevant BSC ERC-8004 agents
-→ verify identity + advertised services
-→ audition / quote candidates
-→ compare fresh evidence
-→ run category-specific independent checks
-→ let AgentDesk Brain explain the proof boundary
+→ add only the details/rules that matter
+→ search broad BSC ERC-8004 registry data
+→ resolve identity + advertised services
+→ safely qualify live candidates
+→ audition the strongest matches in parallel
+→ compare task performance + rule fit
+→ independently check reproducible BNB facts
+→ let AgentDesk Brain explain the evidence boundary
 → authenticate ERC-8183 hire terms
-→ fund the selected job on-chain
+→ connect the buyer wallet and fund only after confirmation
 → receive and verify the result
 ```
 
-The hackathon product and architecture direction is locked in [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md). Treat that file as the source of truth before making product, UI, data, or integration changes.
+The hackathon product and architecture direction is locked in [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md).
+
+## Product flow
+
+The visible experience intentionally stays simple:
+
+```text
+Ask → Details → Test → Best match → Check → Hire
+```
+
+The Test screen performs the harder work underneath:
+
+```text
+Find → Qualify → Apply rules → Shortlist → Test → Compare
+```
+
+Users are not asked to browse a giant directory or manually choose four agents. Broad discovery uses indexed ERC-8004 data, while live service qualification and auditions remain separate proof stages.
 
 ## Judge quick links
 
 - [`SUBMISSION.md`](./SUBMISSION.md) — judge-ready project description and proof map
 - [`docs/HACKATHON_CRITERIA_MAP.md`](./docs/HACKATHON_CRITERIA_MAP.md) — implementation mapped to the published main-track criteria
-- [`docs/FINAL_DEMO_RUNBOOK.md`](./docs/FINAL_DEMO_RUNBOOK.md) — 3–5 minute demo sequence
-- [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) — completed work vs the remaining authenticated/manual gates
-- [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) — dependency hardening and remaining advisory boundary
+- [`docs/FINAL_DEMO_RUNBOOK.md`](./docs/FINAL_DEMO_RUNBOOK.md) — demo sequence
+- [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) — completed work vs remaining authenticated/manual gates
+- [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) — dependency/security boundary
 - `/proof` — deployed evidence ladder
 - `/api/submission` — machine-readable implementation/proof-gate status
 
 ## Current status
 
-### Phase 1 — real discovery ✅
+### Source-backed discovery ✅
 
-The active marketplace uses source-backed BSC/ERC-8004 discovery instead of a fabricated seed catalogue. It preserves source provenance, freshness, identity-registry reads, registration metadata, advertised services and truthful discovery failures.
+AgentDesk uses live/indexed BSC ERC-8004 data instead of a fabricated seed catalogue. Task-aware queries are run in parallel, results are deduplicated by `chainId + tokenId`, and a bounded candidate pool is then re-resolved against the live BSC ERC-8004 Identity Registry.
 
-See [`docs/PHASE1_DATA_MODEL.md`](./docs/PHASE1_DATA_MODEL.md) and [`docs/PHASE1_CANDIDATE_AUDIT.md`](./docs/PHASE1_CANDIDATE_AUDIT.md).
+Known category anchors are compatibility fallbacks only. They are re-resolved from chain each time and are retained only when current metadata still supports the intended category.
 
-### Phase 2 — Live Agent Auditions ✅
+### Task-specific **Your rules** ✅
 
-AgentDesk leads with **“What do you want an agent to do?”** and can audition several discovered candidates through their real advertised A2A services. It preserves measured latency, timestamps, quotes, raw evidence and transparent timeout/error/unsupported states, then ranks candidates using explainable Task Fit rather than a fabricated global Trust Score.
+Rules are optional task-specific constraints, not long-term profiling. They can include risk tolerance, an optional maximum hire price, optional protocol restrictions, action permission, and the public-wallet data boundary where relevant.
 
-Phase 2 was live-verified against ERC-8004 agent `#302258`. See [`docs/PHASE2_AUDITION_AUDIT.md`](./docs/PHASE2_AUDITION_AUDIT.md).
+The same task + rules are sent to every finalist. Rule evaluation distinguishes `pass`, `fail`, and `unknown`; unknown is never upgraded to pass. Known price, protocol, or action conflicts can disqualify a candidate from Best Match. The full task object, including rules, remains inside the audition receipt commitment used by the hiring flow.
 
-### Phase 3 — genuine ERC-8183 hiring implementation ✅
+### Live streamed auditions ✅
 
-The production code supports deterministic audition receipts, strict selected-agent wallet binding, provider-signed ERC-8183 negotiation, buyer-wallet funding, provider notification, on-chain job-state refresh, deliverable-hash verification and completion-only ERC-8004 reputation feedback.
+Screen 3 streams real observable activity rather than fake progress:
+
+- registry search;
+- live service qualification;
+- task-rule application;
+- shortlist creation;
+- parallel auditions of up to four finalists;
+- deterministic comparison of completed results.
+
+A slow or failed provider does not expose raw JSON-RPC/HTTP errors in the primary UX. Technical evidence remains inspectable separately.
+
+### Independent checks + AgentDesk Brain ✅
+
+The four required task families have bounded, category-specific verification paths:
+
+- **Health Factor Monitoring:** read-only BNB wallet context + Venus Core liquidity/shortfall checks;
+- **Yield Optimisation:** canonical token + live PancakeSwap V3 route/pool context, while APY stays unresolved unless independently reproducible;
+- **Grid Trading:** live pool/price context + machine-readable range/grid-count/fee-tier checks;
+- **Rebalancing:** target-allocation math, canonical target assets and scenario-turnover checks.
+
+AgentDesk Brain explains supported facts, unresolved claims, conflicts, watchouts and the next useful question. It cannot change ERC-8004 identity state, Task Fit, independent verification state, or ERC-8183 job state.
+
+### Agent-side wallet infrastructure ✅
+
+AgentDesk keeps the human buyer wallet separate from agent wallet infrastructure.
+
+- The **human buyer** connects through the normal wallet flow only at Hire.
+- A discovered **agent** may explicitly advertise Turnkey, TWAK, Altana or another compatible wallet provider in structured metadata.
+- AgentDesk can carry the user's task rules into a provider-neutral agent-wallet policy request.
+- Wallet-provider claims remain claims until independently evidenced.
+
+See [`docs/AGENT_WALLET_INFRASTRUCTURE.md`](./docs/AGENT_WALLET_INFRASTRUCTURE.md).
+
+The proof boundary remains:
+
+```text
+wallet provider advertised
+≠ wallet policy configured
+≠ policy enforced for this task
+≠ transaction signed
+≠ ERC-8183 job completed
+```
+
+Agent wallet credentials are never placed in browser code or stored as marketplace credentials; they belong to the agent operator.
+
+### Genuine ERC-8183 hiring implementation ✅
+
+The production code supports deterministic audition receipts, selected-agent wallet binding, provider-signed ERC-8183 negotiation, buyer-wallet funding, provider notification, on-chain job-state refresh, deliverable-hash verification and completion-only ERC-8004 reputation feedback.
 
 **Issue #5 remains open as the live proof gate** until a real connected buyer wallet funds an external provider, that provider performs the task, and the resulting job/delivery/completion references can be independently inspected. AgentDesk does not call `FUNDED` a completed hire.
 
-### Phase 4 — production + judge-demo hardening ✅
+### Production/security hardening ✅
 
-Production hardening includes security headers, liveness/readiness endpoints, judge-facing `/proof/`, installable manifest, global failure handling, production smoke checks, responsive browser QA, deployment runbooks and explicit failure-state testing.
+Production hardening includes security headers, liveness/readiness endpoints, bounded remote response sizes, SSRF-oriented URL validation, manual redirects, endpoint timeouts, concurrency limits, judge-facing `/proof`, production smoke checks and responsive browser QA.
 
-See [`docs/PRODUCTION_RUNBOOK.md`](./docs/PRODUCTION_RUNBOOK.md) and [`docs/JUDGE_DEMO.md`](./docs/JUDGE_DEMO.md).
-
-### Phase 5 — AgentDesk Brain + four-category depth ✅
-
-The four task families now have category-specific verification paths that do **not** require trading capital:
-
-- **Health Factor Monitoring:** read-only BNB wallet context + Venus Core liquidity/shortfall checks;
-- **Yield Optimisation:** canonical token + live PancakeSwap V3 route/pool context, while APY remains unverified unless independently reproducible;
-- **Grid Trading:** live pool/price context + deterministic machine-readable range/grid-count/fee-tier checks;
-- **Rebalancing:** target-allocation math, canonical target assets and scenario-turnover checks.
-
-Yield/Grid amounts are **scenario capital only**. No deposit, approval, order, trade or rebalance is executed by category-depth checks.
-
-Agents are asked to optionally expose precise claims in an `agentdesk` JSON block. Prose-only answers remain usable, but AgentDesk will not invent numerical parameters just to make them easier to score.
-
-After independent checks, **AgentDesk Brain** explains verified facts, unresolved claims, conflicts, watchouts and the best next question. When a Camber Brain is configured, Camber powers that explanation. Otherwise AgentDesk uses a deterministic evidence-engine fallback. Either way, the Brain cannot change proof state.
-
-The owner's Camber agent `@emmanuel.Agentdesk-brain` has been account-side tested against the proof-boundary prompt. That Camber test proves the explanatory agent is reachable; it does not turn Camber into an ERC-8004 marketplace identity or an ERC-8183 job proof.
-
-See [`docs/PHASE5_BRAIN_CATEGORY_DEPTH.md`](./docs/PHASE5_BRAIN_CATEGORY_DEPTH.md) and [`camber/agentdesk-brain/`](./camber/agentdesk-brain/).
-
-### Final production/security pass ✅
-
-The maintained Next.js line is pinned to `15.5.24`, the previously observed critical npm advisory has been removed, safe non-breaking transitive fixes were applied, GitHub Actions run on the v5 actions runtime, CI blocks critical runtime advisories, and Dependabot is enabled.
-
-The dependency tree is **not claimed to be vulnerability-free**; remaining inherited high/moderate advisories are documented in [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) rather than hidden or force-fixed through unreviewed breaking upgrades.
+Unknown agent endpoints are treated as untrusted input. Local/private/reserved addresses, unresolved URL templates, credential-bearing URLs and non-standard HTTPS ports are blocked by the network-safety layer.
 
 ## Evidence vocabulary
 
@@ -91,6 +131,7 @@ registry listed
 ≠ service advertised
 ≠ endpoint reachable
 ≠ audition passed
+≠ rules checked
 ≠ independent context checked
 ≠ signed hire terms verified
 ≠ funded
@@ -108,18 +149,6 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Optional/server-side configuration:
-
-```text
-SCAN8004_API_KEY=          # higher 8004scan rate limits
-BSC_MAINNET_RPC_URL=       # direct ERC-8004/category verification reads
-BSC_TESTNET_RPC_URL=       # only if a genuine quoted job targets BSC testnet
-CAMBER_API_KEY=            # server-only Camber CLI credential
-CAMBER_BRAIN_ENABLED=false # deterministic evidence engine works without Camber
-CAMBER_BRAIN_AGENT_TAG=    # e.g. @owner.agentdesk-brain
-CAMBER_CLI_PATH=           # optional; blank auto-checks ~/.camber/bin/camber then PATH
-```
-
 Useful verification commands:
 
 ```bash
@@ -130,19 +159,7 @@ npm run test:production-smoke   # run while the production server is up
 npm run test:ui
 ```
 
-## Camber integration boundary
-
-`POST /api/assistant` remains the older HealthGuard assistant integration. Phase 5 adds a separate `/api/brain/analyse` path for AgentDesk Brain.
-
-Camber Brain is an explanatory layer only. A Camber agent tag does not count as ERC-8004 marketplace identity, liveness, Task Fit, hiring evidence, transaction evidence or job completion.
-
-The source-controlled Camber Context Bundle lives in `camber/agentdesk-brain/`. Creating/syncing the full account-side Context Mirror requires an authenticated Camber CLI/compatible MCP session. The production marketplace does **not** depend on Camber being present: if the Camber call cannot run, the deterministic evidence engine remains the truthful fallback.
-
-## Public deployment boundary
-
-The BNB main track requires a functional, publicly accessible marketplace during judging. The repository is production-ready, but the final public hosting project must be imported/configured in the owner's hosting account. Do not invent a deployment URL in documentation before that host exists.
-
-See [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) for the exact remaining account-side deployment steps.
+Optional server-side configuration is documented in [`.env.example`](./.env.example). External explanatory providers are optional; the marketplace's proof state remains controlled by AgentDesk verification logic.
 
 ## Historical prototype contract
 
@@ -152,4 +169,4 @@ See [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md)
 
 > **AgentDesk is the BNB marketplace where agents prove they are right for your task before you hire them.**
 
-See [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md) for the locked product thesis, truthfulness rules, demo requirements and change-control rules.
+A broader version of that idea is simple: users should not need to search a massive registry themselves. AgentDesk finds relevant agents, makes the strongest candidates prove themselves on the exact task, checks what can be checked, and keeps the user in control of the final hire.
