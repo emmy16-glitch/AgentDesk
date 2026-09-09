@@ -1,5 +1,8 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -56,6 +59,16 @@ function buildMessage(message: string, conversation?: Conversation): string {
   return `Conversation context:\n${history}\n\nUser follow-up: ${message}`;
 }
 
+function resolveCamberCliPath() {
+  const explicit = process.env.CAMBER_CLI_PATH?.trim();
+  if (explicit) return explicit;
+
+  const officialUserInstall = path.join(os.homedir(), ".camber", "bin", "camber");
+  if (existsSync(officialUserInstall)) return officialUserInstall;
+
+  return "camber";
+}
+
 export async function chatWithCamber({
   agentId,
   agentTag,
@@ -72,7 +85,7 @@ export async function chatWithCamber({
 
   const previousConversation = conversationId ? conversations.get(conversationId) : undefined;
   const prompt = buildMessage(message, previousConversation?.agentId === agentId ? previousConversation : undefined);
-  const cliPath = process.env.CAMBER_CLI_PATH?.trim() || "camber";
+  const cliPath = resolveCamberCliPath();
 
   try {
     const { stdout } = await execFileAsync(
@@ -96,6 +109,6 @@ export async function chatWithCamber({
     return { answer, conversationId: resolvedConversationId };
   } catch (error) {
     if (error instanceof CamberError) throw error;
-    throw new CamberError("Camber could not be reached.");
+    throw new CamberError("Camber could not be reached. The deterministic AgentDesk Brain fallback should remain available.");
   }
 }
