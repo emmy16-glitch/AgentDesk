@@ -10,50 +10,44 @@ Describe a task
 → verify identity + advertised services
 → audition / quote candidates
 → compare fresh evidence
-→ hire the best fit on-chain
-→ receive the result
+→ authenticate ERC-8183 hire terms
+→ fund the selected job on-chain
+→ receive and verify the result
 ```
 
 The hackathon product and architecture direction is locked in [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md). Treat that file as the source of truth before making product, UI, data, or integration changes.
 
-## Current status — Phases 1 and 2 complete
+## Current status
 
-### Phase 1 — real discovery
+### Phase 1 — real discovery ✅
 
-The active judge-facing marketplace no longer uses the original fabricated seed catalogue. Discovery and agent details come from source-backed BSC/ERC-8004 evidence.
-
-Implemented:
-
-- server-side ERC-8004 discovery through 8004scan, scoped to BNB Smart Chain mainnet (`chainId 56`);
-- evidence-backed classification into Health Factor Monitoring, Yield Optimisation, Grid Trading and Rebalancing;
-- source provenance and freshness timestamps;
-- direct reads from the BSC ERC-8004 Identity Registry;
-- `tokenURI`, owner, agent-wallet, registration metadata and advertised-service resolution;
-- bounded HTTPS reachability probes with local/private targets blocked;
-- no silent fallback to fabricated marketplace agents when discovery fails;
-- the original fake catalogue and fake trust/uptime/user-count surfaces removed from the active source tree.
+The active marketplace uses source-backed BSC/ERC-8004 discovery instead of a fabricated seed catalogue. It preserves source provenance, freshness, identity-registry reads, registration metadata, advertised services and truthful discovery failures.
 
 See [`docs/PHASE1_DATA_MODEL.md`](./docs/PHASE1_DATA_MODEL.md) and [`docs/PHASE1_CANDIDATE_AUDIT.md`](./docs/PHASE1_CANDIDATE_AUDIT.md).
 
-### Phase 2 — live agent auditions
+### Phase 2 — Live Agent Auditions ✅
 
-AgentDesk now leads with **“What do you want an agent to do?”** rather than a generic directory.
+AgentDesk leads with **“What do you want an agent to do?”** and can audition several discovered candidates through their real advertised A2A services. It preserves measured latency, timestamps, quotes, raw evidence and transparent timeout/error/unsupported states, then ranks candidates using explainable Task Fit rather than a fabricated global Trust Score.
 
-Implemented:
+Phase 2 was live-verified against ERC-8004 agent `#302258`. See [`docs/PHASE2_AUDITION_AUDIT.md`](./docs/PHASE2_AUDITION_AUDIT.md).
 
-- normalized audition request/result contracts for all four required task families;
-- category-specific, bounded read-only audition prompts;
-- live A2A Agent Card/service resolution from ERC-8004-advertised services;
-- synchronous A2A `message/send` auditions where supported;
-- structured-data and live service-offer/quote normalization;
-- measured latency, timestamps, quotes, raw evidence and transparent timeout/error/unsupported states;
-- batch auditioning of up to four real discovered candidates;
-- explainable Task Fit and comparison ordering based only on observable evidence;
-- task-first candidate selection and side-by-side comparison UI;
-- responsive browser QA across desktop, tablet and mobile widths;
-- a CI live-audition gate that must prove at least one real ERC-8004 candidate can answer a pre-hire audition before the Phase 2 branch passes.
+### Phase 3 — genuine ERC-8183 hiring implementation ✅
 
-Phase 2 was live-verified against ERC-8004 agent `#302258` during AgentDesk CI run 76: the advertised A2A service returned a real Grid Trading service offer/quote with measured latency, output and three preserved evidence items. That proves a live pre-hire audition/quote path; it does **not** claim that a paid job was executed. See [`docs/PHASE2_AUDITION_AUDIT.md`](./docs/PHASE2_AUDITION_AUDIT.md).
+The production code now supports:
+
+- deterministic audition receipt commitments;
+- strict binding to the selected ERC-8004 agent wallet;
+- direct ERC-8183 negotiation or a proven A2A `negotiate-erc8183-job` skill;
+- canonical provider-signed quote parsing;
+- negotiation-hash reproduction and EIP-191 / ERC-1271 verification;
+- BNB chain, canonical Commerce-contract and live payment-token verification;
+- buyer-wallet `createJob → registerJob → setBudget → approve → fund`;
+- provider funded-job notification where advertised;
+- live on-chain job-state refresh;
+- on-chain delivery-manifest discovery and deliverable-hash verification;
+- portable ERC-8004 completion feedback only after the paid job is genuinely complete and the delivery still verifies.
+
+The implementation is merged. **Issue #5 remains open as the live proof gate** until a real connected buyer wallet funds an external provider, that provider performs the task, and the resulting job/delivery/completion references can be independently inspected. AgentDesk does not call `FUNDED` a completed hire.
 
 ## Evidence vocabulary
 
@@ -66,26 +60,29 @@ registry listed
 ≠ service advertised
 ≠ endpoint reachable
 ≠ audition passed
-≠ hired
+≠ signed hire terms verified
+≠ funded
+≠ result submitted
 ≠ completed
 ```
 
 A generic “verified agent” label is not used as a substitute for those distinct proofs.
 
-## Next — Phase 3 real hire
+## Current work — production + judge-demo hardening
 
-The next gate is one genuine on-chain job/commerce flow:
+Four-category depth work is temporarily deferred. The current hardening slice adds:
 
-```text
-selected candidate
-→ current quote / terms
-→ genuine ERC-8183 / Agent Studio job and funding reference
-→ agent work
-→ deliverable
-→ completion / settlement evidence
-```
+- production security headers and framework-header minimisation;
+- `GET /api/health/` for liveness-only evidence;
+- `GET /api/readiness/` for bounded BNB mainnet + ERC-8004 Registry readiness;
+- `/proof/` as a judge-facing proof/evidence map;
+- an installable web manifest;
+- a truthful global render failure boundary;
+- production smoke checks in CI;
+- browser QA proving a timed-out candidate stays visible and can never outrank a completed audition;
+- deployment and demo runbooks.
 
-`contracts/AgentTrustMarketplace.sol` remains historical BSC Testnet activation infrastructure only. It is not proof of an external agent job and is not the target Phase 3 hiring path.
+See [`docs/PRODUCTION_RUNBOOK.md`](./docs/PRODUCTION_RUNBOOK.md) and [`docs/JUDGE_DEMO.md`](./docs/JUDGE_DEMO.md).
 
 ## Local development
 
@@ -99,7 +96,8 @@ Optional/server-side configuration:
 
 ```text
 SCAN8004_API_KEY=        # higher 8004scan rate limits
-BSC_MAINNET_RPC_URL=     # direct ERC-8004 identity reads
+BSC_MAINNET_RPC_URL=     # direct ERC-8004 identity/readiness reads
+BSC_TESTNET_RPC_URL=     # only if a genuine quoted job targets BSC testnet
 CAMBER_TOKEN=            # separate HealthGuard assistant prototype
 ```
 
@@ -109,17 +107,20 @@ Useful verification commands:
 npm run typecheck
 npm run contract:compile
 npm run build
+npm run test:production-smoke   # run while the production server is up
 npm run test:ui
 ```
-
-The Phase 2 pull-request CI also runs `scripts/live-audition-smoke.mjs` against real ERC-8004 identities/services.
 
 ## Camber AI prototype
 
 `POST /api/assistant` runs the separate Camber integration server-side using `CAMBER_TOKEN`. Camber assistant configuration does not count as ERC-8004 marketplace identity, liveness, task fit or hiring evidence.
 
+## Historical prototype contract
+
+`contracts/AgentTrustMarketplace.sol` remains historical BSC Testnet activation infrastructure only. It is not evidence of an external agent job and is not the active ERC-8183 hiring path.
+
 ## Product positioning
 
 > **AgentDesk is the BNB marketplace where agents prove they are right for your task before you hire them.**
 
-See [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md) for the locked product thesis, truthfulness rules, build order, demo requirements and change-control rules.
+See [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md) for the locked product thesis, truthfulness rules, demo requirements and change-control rules.
