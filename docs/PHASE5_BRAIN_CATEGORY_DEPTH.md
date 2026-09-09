@@ -1,5 +1,8 @@
 # Phase 5 — AgentDesk Brain + Four-Category Depth
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 ## Goal
 
 Make all four required task families feel like distinct, serious evidence products without requiring the builder or judge to spend trading capital.
