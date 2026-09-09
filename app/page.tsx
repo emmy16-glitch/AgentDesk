@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
-import SearchBar from "@/components/SearchBar";
-import RegistryAgentCard from "@/components/RegistryAgentCard";
-import WalletPanel from "@/components/WalletPanel";
-import AIAssistant from "@/components/AIAssistant";
-import StatsSection from "@/components/StatsSection";
-import TaskFirstAudition from "@/components/auditions/TaskFirstAudition";
-import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
+import CleanTaskFirstAudition from "@/components/auditions/CleanTaskFirstAudition";
+import type { DiscoveredAgent } from "@/lib/8004scan";
 
 interface DiscoveryResponse {
   ok: boolean;
@@ -19,8 +14,6 @@ interface DiscoveryResponse {
 }
 
 export default function HomePage() {
-  const [activeCategory, setActiveCategory] = useState("All Categories");
-  const [query, setQuery] = useState("");
   const [agents, setAgents] = useState<DiscoveredAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,60 +43,46 @@ export default function HomePage() {
     return () => controller.abort();
   }, []);
 
-  const filteredAgents = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const selectedCategory = activeCategory === "All Categories" ? null : activeCategory as MarketplaceCategory;
-
-    return agents.filter((agent) =>
-      (!selectedCategory || agent.categories.includes(selectedCategory)) &&
-      (!needle || `${agent.name} ${agent.categories.join(" ")} ${agent.description}`.toLowerCase().includes(needle)),
-    );
-  }, [activeCategory, agents, query]);
-
   return <div className="min-h-screen overflow-x-hidden bg-background text-white">
     <Navbar />
-    <div className="market-shell">
-      <div className="market-main">
-        <Hero />
+    <main className="clean-marketplace">
+      <section className="clean-hero" aria-labelledby="marketplace-title">
+        <span className="clean-eyebrow">BNB AGENT STUDIO · ERC-8004</span>
+        <h1 id="marketplace-title">Don&apos;t trust the profile.<br /><span>Audition the agent.</span></h1>
+        <p>Tell AgentDesk what you need. It finds real BNB agents, gives them the same task, compares what came back, then lets you verify the winner before you hire.</p>
+        <div className="clean-proof-strip" aria-label="AgentDesk proof boundaries">
+          <span><b /> Live registry discovery</span>
+          <span><b /> Task-specific auditions</span>
+          <span><b /> Independent BNB checks</span>
+          <span><b /> ERC-8183 hire path</span>
+        </div>
+      </section>
 
-        <TaskFirstAudition agents={agents} discoveryLoading={loading} discoveryError={error} />
+      <CleanTaskFirstAudition agents={agents} discoveryLoading={loading} discoveryError={error} />
 
-        <section className="registry-browser" aria-labelledby="registry-browser-heading">
-          <div className="registry-browser-heading">
-            <div>
-              <span>ERC-8004 SOURCE RECORDS</span>
-              <h2 id="registry-browser-heading">Inspect the candidates behind the auditions</h2>
-            </div>
-            <p>Discovery proves identity/category evidence only. Service reachability and task quality are checked separately during an audition.</p>
-          </div>
-          <SearchBar activeCategory={activeCategory} setActiveCategory={setActiveCategory} query={query} setQuery={setQuery} />
+      <section className="clean-how" id="how-it-works" aria-labelledby="how-title">
+        <h2 id="how-title">How AgentDesk works</h2>
+        <div className="clean-how-grid">
+          <div><b>1</b><span><strong>Describe one task</strong>Pick health, yield, grid or rebalancing and provide only the information that task needs.</span></div>
+          <div><b>2</b><span><strong>Watch agents audition</strong>Selected ERC-8004 candidates get the same bounded task and return live evidence.</span></div>
+          <div><b>3</b><span><strong>Verify, then hire</strong>Inspect independent context and only open the ERC-8183 hire path for the agent you choose.</span></div>
+        </div>
+      </section>
 
-          <div role="status" aria-live="polite" className="registry-status">
-            {loading && "Discovering registered ERC-8004 agents on BNB Smart Chain…"}
-            {!loading && !error && `Sourced from ERC-8004 / 8004scan${checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString()}` : ""}. Registry presence does not imply endpoint reachability.`}
-          </div>
-
-          {error ? <section className="agent-card" role="alert">
-            <h2>Live discovery unavailable</h2>
-            <p className="agent-description">{error}</p>
-            <p className="agent-description">AgentDesk will not silently replace failed registry discovery with fabricated agent statistics.</p>
-          </section> : null}
-
-          {!loading && !error && filteredAgents.length === 0 ? <section className="agent-card">
-            <h2>No source-qualified candidates yet</h2>
-            <p className="agent-description">No currently indexed BSC agent passed the evidence filter for this category/search. We show an empty result rather than inventing one.</p>
-          </section> : null}
-
-          <main className="agent-grid" id="agents" aria-label="ERC-8004 agent discovery results">
-            {filteredAgents.map((agent) => <RegistryAgentCard key={`${agent.chainId}:${agent.tokenId}`} agent={agent} />)}
-          </main>
-        </section>
-      </div>
-      <aside className="market-sidebar" aria-label="Wallet and assistant tools">
-        <WalletPanel />
-        <AIAssistant />
-      </aside>
-    </div>
-    <StatsSection />
+      <details className="clean-registry" id="agents">
+        <summary>
+          Browse the live ERC-8004 registry
+          <span>{loading ? "Loading…" : error ? "Discovery unavailable" : `${agents.length} source-qualified records${checkedAt ? ` · checked ${new Date(checkedAt).toLocaleTimeString()}` : ""}`}</span>
+        </summary>
+        <div className="clean-registry-list">
+          {error ? <div className="clean-error">{error}</div> : null}
+          {!error && agents.slice(0, 12).map((agent) => <div className="clean-registry-row" key={`${agent.chainId}:${agent.tokenId}`}>
+            <strong>{agent.name}</strong>
+            <span>#{agent.tokenId} · {agent.categories[0] || "Unclassified"}</span>
+            <a href={agent.sourceUrl} target="_blank" rel="noreferrer">Source <ExternalLink size={12} /></a>
+          </div>)}
+        </div>
+      </details>
+    </main>
   </div>;
 }
