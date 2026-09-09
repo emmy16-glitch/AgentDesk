@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-09-09T21:34:51.849Z",
+  "appUrl": "https://agentdesk-bnb-eight.vercel.app/",
+  "screen": {
+    "width": 1920,
+    "height": 1080
+  },
+  "prompt": "Find a low-risk yield option for 500 USDC.",
+  "events": [],
+  "fatal": "OpenScreen window capture failed: {\"event\":\"done\",\"success\":false,\"error\":\"Error: No window title contains \\\"AgentDesk\\\". Open windows:\\n\\n    at file:///home/runner/work/AgentDesk/AgentDesk/squashfs-root/resources/app.asar/dist/assets/CliRecordRunner-CYZOyWnV.js:1:1631\\n    at async file:///home/runner/work/AgentDesk/AgentDesk/squashfs-root/resources/app.asar/dist/assets/CliRecordRunner-CYZOyWnV.js:1:1275\"}"
+}
