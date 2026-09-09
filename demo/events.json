@@ -1,11 +1,56 @@
 {
-  "recordedAt": "2026-09-09T21:34:51.849Z",
+  "recordedAt": "2026-09-09T21:46:00.240Z",
   "appUrl": "https://agentdesk-bnb-eight.vercel.app/",
   "screen": {
     "width": 1920,
     "height": 1080
   },
   "prompt": "Find a low-risk yield option for 500 USDC.",
-  "events": [],
-  "fatal": "OpenScreen window capture failed: {\"event\":\"done\",\"success\":false,\"error\":\"Error: No window title contains \\\"AgentDesk\\\". Open windows:\\n\\n    at file:///home/runner/work/AgentDesk/AgentDesk/squashfs-root/resources/app.asar/dist/assets/CliRecordRunner-CYZOyWnV.js:1:1631\\n    at async file:///home/runner/work/AgentDesk/AgentDesk/squashfs-root/resources/app.asar/dist/assets/CliRecordRunner-CYZOyWnV.js:1:1275\"}"
+  "events": [
+    {
+      "name": "homepage_ready",
+      "tMs": 3042,
+      "box": {
+        "x": 370,
+        "y": 266,
+        "width": 660,
+        "height": 278
+      }
+    },
+    {
+      "name": "prompt_typed",
+      "tMs": 11218
+    },
+    {
+      "name": "click_find_test",
+      "tMs": 13923,
+      "box": {
+        "x": 1299,
+        "y": 815,
+        "width": 216,
+        "height": 52
+      }
+    },
+    {
+      "name": "details_visible",
+      "tMs": 15453,
+      "box": {
+        "x": 535,
+        "y": 548,
+        "width": 850,
+        "height": 30
+      }
+    },
+    {
+      "name": "click_find_live",
+      "tMs": 20187,
+      "box": {
+        "x": 1186,
+        "y": 1074,
+        "width": 199,
+        "height": 52
+      }
+    }
+  ],
+  "fatal": "Timed out waiting for Test stage"
 }
