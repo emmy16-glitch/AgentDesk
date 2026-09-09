@@ -318,17 +318,42 @@ async function run() {
   await waitForSelector(page, ".ad-test", { timeout: 20_000, label: "Test stage" });
   recordEvent("test_visible");
 
-  const outcome = await waitForAny(page, [".ad-match", ".ad-stream-failure", ".ad-empty-result"], 240_000);
+  // The live ecosystem can be flaky. The app's own remedy is "Retry live
+  // search" — use it (on camera, honestly) a bounded number of times. If it
+  // keeps failing we record the failure state exactly as shown.
   let flowFailed = false;
-  if (outcome === ".ad-stream-failure" || outcome === ".ad-empty-result") {
-    const message = await page.textContent(`${outcome} h2`).catch(() => null);
-    recordEvent("flow_failed", { selector: outcome, message: message?.trim() ?? null });
-    await page.screenshot({ path: path.join(DEMO_DIR, "diag-flowfailed.png") }).catch(() => {});
-    log("Live discovery failed — recording the honest failure state.");
-    flowFailed = true;
-    await sleep(5200);
-  } else if (!outcome) {
-    throw new Error("Discovery never produced a result or failure state (240s)");
+  let outcome = null;
+  for (let attempt = 0; attempt < 3 && !flowFailed; attempt += 1) {
+    outcome = await waitForAny(page, [".ad-match", ".ad-stream-failure", ".ad-empty-result"], 240_000);
+    if (outcome === ".ad-match") break;
+
+    const failedSelector = outcome ?? ".ad-test";
+    const message = outcome
+      ? await page.textContent(`${outcome} h2`).catch(() => null)
+      : "discovery produced no state within 240s";
+    recordEvent(attempt === 0 ? "flow_failed" : `flow_failed_retry_${attempt}`, {
+      selector: failedSelector,
+      message: message?.trim() ?? null,
+    });
+    await page.screenshot({ path: path.join(DEMO_DIR, `diag-flowfailed-${attempt}.png`) }).catch(() => {});
+
+    if (attempt >= 2 || !outcome) {
+      log("Live discovery failed and retries are exhausted — recording the honest failure state.");
+      flowFailed = true;
+      await sleep(5200);
+      break;
+    }
+
+    // Honest on-camera retry via the app's own button.
+    log(`Discovery attempt ${attempt} failed; clicking "Retry live search"…`);
+    await sleep(2500);
+    await ensureVisible(page, ".ad-stream-failure .ad-primary");
+    const retryBox = await getBox(page, ".ad-stream-failure .ad-primary");
+    if (!retryBox) { flowFailed = true; await sleep(4000); break; }
+    await smoothMoveTo(page, centerX(retryBox), centerY(retryBox), 600);
+    await sleep(500);
+    recordEvent(`click_retry_${attempt + 1}`, { box: retryBox });
+    await calmClick(page);
   }
 
   if (!flowFailed) {

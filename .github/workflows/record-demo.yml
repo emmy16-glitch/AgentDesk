@@ -44,8 +44,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq || true
-          sudo apt-get install -y -qq ffmpeg xvfb >/dev/null
+          sudo apt-get install -y -qq ffmpeg xvfb mesa-vulkan-drivers libgl1 >/dev/null
           which ffmpeg xvfb-run
+          vulkaninfo --summary 2>/dev/null | head -5 || true
 
       - name: Fetch OpenScreen (AppImage, extracted)
         run: |
@@ -73,7 +74,9 @@ jobs:
         run: node scripts/product-demo/finalize-project.mjs demo/agentdesk.openscreen
 
       - name: Export with OpenScreen
+        shell: bash
         run: |
+          set -o pipefail
           xvfb-run -a env ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun info demo/agentdesk.openscreen --json || true
           xvfb-run -a env ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun export demo/agentdesk.openscreen \
             -o demo/AgentDesk-demo.mp4 --quality good --json | tee demo/openscreen-export.log
