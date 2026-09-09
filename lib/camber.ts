@@ -67,6 +67,14 @@ function rpcErrorMessage(error: RpcError | undefined): string {
   return getString(error?.message) ?? "Camber MCP returned an error.";
 }
 
+function oauthAccessToken(): string {
+  const token = process.env.CAMBER_MCP_ACCESS_TOKEN?.trim() || process.env.CAMBER_TOKEN?.trim();
+  if (!token) {
+    throw new CamberError("Camber MCP OAuth access token is not configured.");
+  }
+  return token;
+}
+
 async function mcpPost({
   token,
   url,
@@ -112,7 +120,9 @@ async function mcpPost({
     });
 
     const text = await response.text();
-    if (text.length > maxResponseBytes) throw new CamberError("Camber MCP response exceeded the safety limit.");
+    if (text.length > maxResponseBytes) {
+      throw new CamberError("Camber MCP response exceeded the safety limit.");
+    }
     if (!response.ok) {
       throw new CamberError(`Camber MCP request failed with HTTP ${response.status}.`);
     }
@@ -235,7 +245,9 @@ async function openMcpSession(token: string, url: string) {
     },
   });
 
-  if (!initialized.envelope?.result) throw new CamberError("Camber MCP did not complete initialization.");
+  if (!initialized.envelope?.result) {
+    throw new CamberError("Camber MCP did not complete initialization.");
+  }
   const sessionId = initialized.sessionId;
 
   await mcpPost({
@@ -365,7 +377,9 @@ async function chatViaMcp({
     sessionId = checked.sessionId ?? sessionId;
     const status = getStatus(checked.payload);
 
-    if (status === "failed") throw new CamberError(getAnswer(checked.payload) ?? "Camber agent run failed.");
+    if (status === "failed") {
+      throw new CamberError(getAnswer(checked.payload) ?? "Camber agent run failed.");
+    }
     if (status === "idle" || status === "completed" || status === "done") {
       const answer = getAnswer(checked.payload);
       if (!answer) throw new CamberError("Camber agent completed without an answer.");
@@ -387,9 +401,7 @@ export async function chatWithCamber({
   message: string;
   conversationId?: string;
 }) {
-  const token = process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim();
-  if (!token) throw new CamberError("Camber API credentials are not configured.");
-
+  const token = oauthAccessToken();
   const url = process.env.CAMBER_MCP_URL?.trim() || defaultMcpUrl;
   if (!url.startsWith("https://")) throw new CamberError("Camber MCP URL must use HTTPS.");
 

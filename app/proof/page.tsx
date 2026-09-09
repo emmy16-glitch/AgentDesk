@@ -14,8 +14,6 @@ const stages = [
 
 export default function ProofPage() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
-  const camberEnabled = process.env.CAMBER_BRAIN_ENABLED?.toLowerCase() === "true";
-  const brainTag = process.env.CAMBER_BRAIN_AGENT_TAG || null;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-white">
@@ -48,18 +46,18 @@ export default function ProofPage() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#8eb8ff]">AgentDesk Brain</p>
           <h2 className="mt-2 text-2xl font-bold">Explanation is not verification.</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#aebbd0]">
-            The Brain receives the audition output plus AgentDesk&apos;s independent check results, then explains verified facts, unresolved claims, conflicts and watchouts. It cannot change an ERC-8004 identity state, an ERC-8183 job state, Task Fit, or an independent verification result.
+            AgentDesk Brain receives the audition output plus AgentDesk&apos;s independent check results, then explains supported facts, unresolved claims, conflicts and watchouts. It cannot change an ERC-8004 identity state, an ERC-8183 job state, Task Fit, or an independent verification result.
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">
-              runtime: {camberEnabled ? "Camber enabled" : "deterministic evidence engine"}
+              AgentDesk Brain active
             </span>
-            {camberEnabled && brainTag ? (
-              <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 font-mono text-[#aecbff]">{brainTag}</span>
-            ) : null}
+            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">
+              Evidence-bound analysis
+            </span>
           </div>
           <p className="mt-4 text-xs leading-5 text-[#73849d]">
-            When Camber is unavailable or disabled, AgentDesk falls back to deterministic evidence analysis instead of generating substitute proof.
+            The Brain explains only evidence AgentDesk has already collected or independently checked; it does not manufacture stronger proof.
           </p>
         </section>
 
