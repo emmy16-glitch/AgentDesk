@@ -1,13 +1,17 @@
 # Final Submission Checklist
 
-This checklist separates work that is already complete in the repository from the few actions that require an authenticated account, a public host, or real funds.
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
+This checklist separates work that is already complete in the repository from the few actions that still depend on a real wallet, an external provider, or final submission media.
 
 ## Repository-complete
 
 - [x] All four official marketplace categories are first-class.
 - [x] Source-backed BSC/ERC-8004 discovery; no fake fallback catalogue.
 - [x] On-chain identity and metadata resolution kept separate from source listing.
-- [x] Multi-agent live audition flow with blind comparison and real timing/evidence states.
+- [x] Multi-agent live audition flow with real timing/evidence states.
 - [x] Task Fit uses evidence instead of a fabricated global trust score.
 - [x] Category-specific no-funds independent checks for Health, Yield, Grid and Rebalancing.
 - [x] Scenario capital is clearly distinguished from real wallet balances.
@@ -22,29 +26,30 @@ This checklist separates work that is already complete in the repository from th
 - [x] Production build, smoke tests, responsive browser QA and CI.
 - [x] Patched maintained Next.js line; no known critical runtime advisory accepted by CI.
 - [x] Dependabot configured for ongoing npm and GitHub Actions maintenance.
-- [x] AgentDesk Brain created and successfully tested in the owner's Camber account.
+- [x] Public Vercel deployment is live.
+- [x] Live URL is documented throughout the repository.
 
-## Requires the user's authenticated hosting account
+## Public deployment — complete
 
-### Public deployment — required by the main track
+Production URL:
 
-- [ ] Import `emmy16-glitch/AgentDesk` into Vercel (or another Node-compatible public host).
-- [ ] Confirm the production branch is `main`.
-- [ ] Add `NEXT_PUBLIC_REOWN_PROJECT_ID` for wallet connection.
-- [ ] Add `SCAN8004_API_KEY` if available; anonymous discovery remains a lower-rate fallback.
-- [ ] Optionally set `BSC_MAINNET_RPC_URL` to a reliable BSC mainnet RPC.
-- [ ] Keep `CAMBER_BRAIN_ENABLED=false` on a host that does not provide the Camber CLI; the deterministic Brain remains functional.
-- [ ] If using a server/container where Camber CLI is installed, add `CAMBER_API_KEY`, `CAMBER_BRAIN_AGENT_TAG=@emmanuel.Agentdesk-brain`, and enable the Brain.
-- [ ] Open `/api/health` and confirm HTTP 200.
-- [ ] Open `/api/readiness` and confirm BNB readiness is 200 (or investigate a truthful 503).
-- [ ] Open `/proof` and verify the production commit is visible when the host exposes it.
-- [ ] Put the final public URL into `SUBMISSION.md` / the hackathon form.
+https://agentdesk-bnb-eight.vercel.app/
 
-**Do not paste Camber API keys, wallet private keys or deployer private keys into GitHub, screenshots, issue comments, or the submission form.**
+Judge-facing routes:
+
+- Marketplace: https://agentdesk-bnb-eight.vercel.app/
+- Docs: https://agentdesk-bnb-eight.vercel.app/docs/
+- Proof: https://agentdesk-bnb-eight.vercel.app/proof/
+- Health: https://agentdesk-bnb-eight.vercel.app/api/health/
+- Readiness: https://agentdesk-bnb-eight.vercel.app/api/readiness/
+
+Before a live judge session, re-check health/readiness and disclose any truthful upstream degradation instead of hiding it.
+
+**Do not paste Camber API keys, wallet private keys, deployer private keys, seed phrases, or protected provider credentials into GitHub, screenshots, issue comments, or the submission form.**
 
 ## Requires a real wallet / external provider
 
-### Final ERC-8183 live proof — Issue #5
+### Final ERC-8183 live completion proof — Issue #5
 
 - [ ] Connect the buyer wallet.
 - [ ] Use one genuine external ERC-8183-compatible provider.
@@ -58,29 +63,36 @@ This checklist separates work that is already complete in the repository from th
 
 This gate needs only **one** genuine small job. It does not require paying four category agents.
 
-## Demo video — manual recording
+## Demo video / public post
 
-- [ ] Record a 3–5 minute walkthrough using `docs/FINAL_DEMO_RUNBOOK.md`.
-- [ ] Show the public URL in the browser address bar at least once.
-- [ ] Show all four categories, not only the strongest one.
-- [ ] Run a live audition when the external service is available.
-- [ ] Show an independent category check and AgentDesk Brain.
-- [ ] Show `/proof` and explain the evidence ladder.
-- [ ] If the real paid job proof exists, show its BscScan/protocol references.
-- [ ] If it does not exist yet, do not stage or fake it in the video.
-- [ ] Upload the video and put the real link in the submission form.
+A real production recording has been captured from the public AgentDesk deployment. The current Grid Trading recording shows a **LIVE CAPABILITY MATCH** and the transition to Hire.
+
+That recording must continue to be described truthfully:
+
+```text
+Live capability confirmed
+≠ task completed
+≠ trade executed
+≠ money moved
+≠ paid ERC-8183 job completed
+```
+
+Remaining media tasks:
+
+- [ ] Publish the final video/X post.
+- [ ] Add the public video/post URL to the hackathon submission if editing is still available.
+- [ ] Keep captions/post copy consistent with the capability-confirmed truth state.
 
 ## Final hackathon form
 
-- [ ] Project name: **AgentDesk**
-- [ ] Tagline: **Don't trust the profile. Audition the agent.**
-- [ ] Main track: BNB Agent Studio Marketplace.
-- [ ] Public deployment URL entered.
-- [ ] GitHub URL entered.
-- [ ] Demo video URL entered.
-- [ ] Description starts with the task-first audition differentiator.
-- [ ] Four-category depth is explicitly stated.
-- [ ] ERC-8004 and ERC-8183 usage is explicitly stated.
+- [x] Project name: **AgentDesk**
+- [x] Main public app exists.
+- [x] GitHub repository is public and documented.
+- [ ] Confirm the final form response contains or can reach the live app URL.
+- [ ] Add demo video/post URL if the form allows an update.
+- [x] Description starts with the task-first audition differentiator.
+- [x] Four-category depth is explicitly documented.
+- [x] ERC-8004 and ERC-8183 usage is explicitly documented.
 - [ ] Do not claim Altana partner eligibility without its required live Altana on-chain evidence.
 - [ ] Do not claim TermiX partner eligibility without the required Agent Advantage Report.
 - [ ] Do not describe historical `AgentTrustMarketplace.sol` activity as the current ERC-8183 proof.
@@ -94,6 +106,7 @@ registry listed = verified agent
 advertised = reachable
 reachable = audition passed
 audition passed = hired
+capability confirmed = task completed
 funded = completed
 Brain analysis = blockchain proof
 prototype activation = ERC-8183 job
