@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { compareAuditions } from "@/lib/auditions/compare";
 import { runAudition } from "@/lib/auditions/engine";
 import type { AuditionResult } from "@/lib/auditions/types";
-import { searchBscAgentsByQuery, type DiscoveredAgent } from "@/lib/8004scan";
+import {
+  resolveCoverageAnchorForCategory,
+  searchBscAgentsByQuery,
+  type DiscoveredAgent,
+} from "@/lib/8004scan";
 import { qualifyCandidates, type QualifiedCandidate } from "@/lib/discovery/qualify";
 import { planDiscoveryQueries } from "@/lib/discovery/query-plan";
 import type { DiscoveryRunInput, DiscoveryRunSummary, DiscoveryStreamEvent } from "@/lib/discovery/types";
@@ -19,6 +23,7 @@ export const DISCOVERY_LIMITS = {
 
 export interface DiscoveryDependencies {
   search(query: string): ReturnType<typeof searchBscAgentsByQuery>;
+  anchor?(category: DiscoveryRunInput["task"]["category"]): Promise<DiscoveredAgent | null>;
   qualify(candidates: DiscoveredAgent[]): ReturnType<typeof qualifyCandidates>;
   audition(input: { tokenId: number; task: DiscoveryRunInput["task"] }): Promise<AuditionResult>;
   compare(results: AuditionResult[], guardrails: DiscoveryRunInput["task"]["guardrails"]): ReturnType<typeof compareAuditions>;
@@ -26,6 +31,7 @@ export interface DiscoveryDependencies {
 
 const defaultDependencies: DiscoveryDependencies = {
   search: searchBscAgentsByQuery,
+  anchor: resolveCoverageAnchorForCategory,
   qualify: qualifyCandidates,
   audition: runAudition,
   compare: compareAuditions,
@@ -90,7 +96,10 @@ export async function* runDiscoveryStream(
   };
 
   yield { type: "search-started", runId, timestamp: startedAt };
-  const searchSettled = await Promise.allSettled(queries.map((query) => dependencies.search(query)));
+  const [searchSettled, anchor] = await Promise.all([
+    Promise.allSettled(queries.map((query) => dependencies.search(query))),
+    dependencies.anchor ? dependencies.anchor(input.task.category).catch(() => null) : Promise.resolve(null),
+  ]);
   const sourceApis = new Set<string>();
   const discovered: DiscoveredAgent[] = [];
   for (const entry of searchSettled) {
@@ -101,6 +110,11 @@ export async function* runDiscoveryStream(
       discovered.push(agent);
     }
   }
+  if (anchor && anchor.categories.includes(input.task.category)) {
+    discovered.push(anchor);
+    sourceApis.add(anchor.sourceApi);
+  }
+
   const unique = dedupeRegistryCandidates(discovered);
   summary.sourceApis = [...sourceApis];
   summary.uniqueRegistryMatches = unique.length;
