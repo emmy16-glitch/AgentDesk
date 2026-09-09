@@ -36,19 +36,20 @@ export async function probeService(service: AgentService): Promise<ServiceProbe>
     const response = await fetch(validation.url, {
       method: "GET",
       headers: {
-        Accept: "application/json, text/html;q=0.8, */*;q=0.5",
+        Accept: "application/json, application/a2a+json, text/html;q=0.7, */*;q=0.4",
         "User-Agent": "AgentDesk-Availability-Probe/1.0",
       },
       redirect: "manual",
       cache: "no-store",
-      signal: AbortSignal.timeout(4_000),
+      signal: AbortSignal.timeout(4_500),
     });
     const latencyMs = Math.round(performance.now() - started);
     await response.body?.cancel().catch(() => undefined);
 
-    const reachable =
-      (response.status >= 200 && response.status < 400) ||
-      [401, 403, 405, 429].includes(response.status);
+    // A2A interaction paths are often POST-only. Any non-5xx HTTP response proves
+    // the public service host answered; the audition layer still decides whether
+    // its Agent Card and JSON-RPC flow are actually compatible.
+    const reachable = response.status >= 200 && response.status < 500;
 
     return {
       name: service.name,
@@ -58,13 +59,15 @@ export async function probeService(service: AgentService): Promise<ServiceProbe>
       latencyMs,
       checkedAt,
       reason: reachable
-        ? "The advertised HTTP service responded. This proves reachability only, not task quality or correctness."
+        ? response.status >= 400
+          ? `The advertised host responded with HTTP ${response.status}. Host reachability is confirmed; task compatibility still requires a live audition.`
+          : "The advertised HTTP service responded. This proves reachability only, not task quality or correctness."
         : `The advertised path responded with HTTP ${response.status}.`,
     };
   } catch (error) {
     const latencyMs = Math.round(performance.now() - started);
-    const reason = error instanceof Error && error.name === "TimeoutError"
-      ? "Probe timed out after 4 seconds"
+    const reason = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")
+      ? "Probe timed out after 4.5 seconds"
       : "Endpoint could not be reached";
     return {
       name: service.name,
