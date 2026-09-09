@@ -42,20 +42,23 @@ components:
 
 # AgentDesk Design System
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 ## Creative north star
 
 A continuous six-step AgentDesk experience in a dark cinematic BNB environment. Soft glass and matte-metal surfaces support the task; the supplied environmental BNB artwork is the sole expressive visual. BNB gold is reserved for the primary decision, the active step, and small orientation details.
 
 The product thesis is defined in `HACKATHON_LOCK.md`:
 
-> **Don't trust the profile. Audition the agent.**
+> **Don't trust the listing. Test the agent.**
 
-The design system must support that thesis. It must never make a decorative score look more authoritative than the underlying evidence.
+The design system must support that thesis. It must never make a decorative score, badge, or animation look more authoritative than the underlying evidence.
 
 ## Product context
 
 - **Audience:** BNB Chain users trying to choose an agent for a specific task.
-- **Primary job:** describe/select a task, discover relevant agents, inspect current evidence, audition candidates, compare, then hire the chosen agent through a real commerce path.
+- **Primary job:** describe/select a task, discover relevant agents, inspect current evidence, test candidates, compare, then hire the chosen agent through a real commerce path.
 - **Locale:** English (`en`).
 - **Usage scene:** desktop and mobile decision-making; advanced Web3 protocol detail is available but is not a prerequisite for using the marketplace.
 - **Memorable signature:** one persistent, blended BNB environmental artwork behind a calm, task-first workflow.
@@ -71,18 +74,19 @@ registry listed
 ≠ identity resolved
 ≠ metadata resolved
 ≠ endpoint reachable
-≠ audition passed
+≠ capability confirmed
+≠ task completed
 ≠ hired
-≠ completed
+≠ completed paid job
 ```
 
-Do not collapse these into a generic blue check or a single “verified” badge.
+Do not collapse these into a generic check or a single “verified” badge.
 
 Preferred evidence UI:
 
 - source name and ID;
 - checked/observed timestamp;
-- explicit state labels such as `REGISTRY LISTED`, `REACHABLE`, `AUDITION COMPLETE`;
+- explicit state labels such as `REGISTRY LISTED`, `REACHABLE`, `LIVE CAPABILITY MATCH`, or a clearly supported task-result state;
 - source links / evidence drawers;
 - missing evidence shown as missing rather than converted to a positive-looking zero or score.
 
@@ -100,7 +104,7 @@ Use Geist Sans throughout. Hero display is 650–700 with tight tracking and is 
 
 - Canonical desktop shell: centered, max width 1180px, with 32px desktop and 18px mobile gutters.
 - `AgentDeskShell` owns the navigation, environmental artwork, progress stepper, and base responsive behavior. Workflow content transitions in place without swapping the environment.
-- The primary flow is Ask → Details → Test → Best match → Check → Hire. The old utility sidebar and registry grid are not part of this guided surface.
+- The primary flow is Ask → Details → Test → Best Match → Check → Hire. The old utility sidebar and registry grid are not part of this guided surface.
 - At narrow widths, the shell uses one column, an abbreviated “Step n of 6” indicator, full-width actions, and a darker/right-shifted environmental object. No horizontal page overflow is allowed.
 
 ## Components
@@ -130,16 +134,16 @@ Cards are candidate summaries, not proof by decoration. Prioritize:
 3. source-attributed reputation/activity fields if available;
 4. provenance and freshness;
 5. current operational state when checked;
-6. inspect/audition action.
+6. inspect/test action.
 
 Do **not** prioritize invented global trust percentages, invented interaction counts, invented uptime, fabricated performance duration, or fake verification badges.
 
-### Audition results
+### Test results
 
-Audition surfaces should prioritize:
+Result surfaces should prioritize:
 
-- status: complete / unsupported / timeout / error;
-- task-specific output;
+- result type: task-specific result / capability-service response / unsupported / timeout / error;
+- task-specific output when genuinely returned;
 - latency;
 - quote and expiry when real;
 - raw/source-linked evidence;
@@ -147,7 +151,9 @@ Audition surfaces should prioritize:
 - explainable Task Fit reasons;
 - missing evidence.
 
-Preferred ranking labels: `BEST FIT`, `STRONG FIT`, `PARTIAL FIT`, `NOT ENOUGH EVIDENCE`.
+A capability response may be presented as **LIVE CAPABILITY MATCH** or **Capability confirmed**. It must not be restyled or narrated as “Task completed.”
+
+Preferred ranking labels where comparison applies: `BEST FIT`, `STRONG FIT`, `PARTIAL FIT`, `NOT ENOUGH EVIDENCE`.
 
 ### Comparison
 
@@ -155,11 +161,11 @@ Use side-by-side rows where the user can see *why* candidates differ. Highlight 
 
 ### Hiring
 
-The primary hire state must eventually represent a real Agent Studio / ERC-8183 job and returned result. The legacy BSC Testnet activation contract may be shown only in explicitly marked prototype/developer context.
+The Hire stage represents the transition from pre-hire evidence into the ERC-8183 job/commerce path. A capability confirmation is not itself a paid job, and a funded job is not automatically completed work. The legacy BSC Testnet activation contract may be shown only in explicitly marked prototype/developer context.
 
 ## Forms and overlays
 
-Task forms use dark bordered inputs with visible focus states. Wallet selection is app-owned and appears only at the Hire stage. Async operations must keep the initiating control and status understandable: waiting, timeout, failure and completion are distinct states.
+Task forms use dark bordered inputs with visible focus states. Wallet selection is app-owned and appears only at the Hire stage. Async operations must keep the initiating control and status understandable: waiting, timeout, failure, capability confirmation, task result and completion are distinct states.
 
 ## Iconography
 
@@ -184,7 +190,8 @@ Motion is limited to short hover lifts, reveal transitions and status changes. R
 - **Do:** make provenance inspectable.
 - **Do:** show timestamps and evidence-state labels.
 - **Do:** optimize the main journey for the user's task.
+- **Do:** visually distinguish capability confirmation from actual task completion.
 - **Don't:** turn ERC-8004 into a decorative verification badge.
 - **Don't:** reintroduce static trust/uptime/user-count demo metrics into judge-facing UI.
-- **Don't:** preserve the old four-card screenshot layout if it conflicts with task-first audition UX.
-- **Don't:** call a prototype activation a completed agent hire.
+- **Don't:** preserve the old four-card screenshot layout if it conflicts with task-first UX.
+- **Don't:** call a prototype activation, capability match, or funded-but-unfinished job a completed agent hire.
