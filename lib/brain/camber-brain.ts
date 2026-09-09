@@ -90,8 +90,10 @@ export function camberBrainEnabled(): boolean {
   if (explicit === "false") return false;
   if (explicit && explicit !== "true") return false;
 
-  const token = process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim();
-  return Boolean(token && getCamberBrainAgentTag());
+  // Camber's remote MCP uses OAuth. A Camber CLI API key is not an MCP OAuth token
+  // and must never make production report the remote Brain as enabled.
+  const oauthAccessToken = process.env.CAMBER_MCP_ACCESS_TOKEN?.trim();
+  return Boolean(oauthAccessToken && getCamberBrainAgentTag());
 }
 
 export async function analyseWithCamber(input: BrainAnalysisInput): Promise<BrainAnalysis> {
