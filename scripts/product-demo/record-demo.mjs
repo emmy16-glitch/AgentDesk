@@ -314,10 +314,9 @@ async function run() {
     ],
     { env, stdio: ["ignore", "pipe", "pipe"] },
   );
-  chrome.stderr.on("data", (chunk) => {
-    const text = chunk.toString();
-    if (!/dbus|bluez|gbm|egl|gl_/i.test(text)) process.stderr.write(text.slice(0, 400));
-  });
+  const chromeLog = fs.createWriteStream(path.join(DEMO_DIR, "chrome.log"), { flags: "a" });
+  chrome.stdout.on("data", (chunk) => chromeLog.write(chunk));
+  chrome.stderr.on("data", (chunk) => chromeLog.write(chunk));
 
   // Wait for the CDP endpoint to come up.
   let cdpReady = false;
@@ -334,7 +333,9 @@ async function run() {
   const context = browser.contexts()[0];
   await context.addInitScript(CURSOR_OVERLAY_SCRIPT);
   const page = context.pages()[0] || (await context.waitForEvent("page"));
-  log("Connected over CDP, waiting for the homepage to settle…");
+  page.on("console", (message) => log("page console:", message.type(), message.text().slice(0, 200)));
+  page.on("pageerror", (error) => log("page error:", String(error).slice(0, 200)));
+  log("Connected over CDP. URL:", page.url(), "Waiting for the homepage to settle…");
   await page.waitForSelector("#agent-task", { timeout: 60_000 });
   await settlePage(page);
   await page.evaluate(CURSOR_OVERLAY_SCRIPT); // cover the already-loaded document too

@@ -92,6 +92,16 @@ jobs:
           ffmpeg -v error -i demo/AgentDesk-demo.mp4 -vf "fps=1/7,scale=640:-1" -frames:v 12 demo/thumbs/frame_%02d.jpg
           ls -la demo/thumbs
 
+      - name: Commit diagnostics on failure
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git add demo/ demo-xvfb.log 2>/dev/null || true
+          git commit -m "chore(demo): recording diagnostics (failed run)" || echo "nothing to commit"
+          git push origin "HEAD:${GITHUB_REF_NAME}" || true
+
       - name: Commit demo artifacts back to this branch
         run: |
           test -s demo/AgentDesk-demo.mp4 || { echo "::error::Export produced no video — see openscreen-export.log"; exit 1; }
