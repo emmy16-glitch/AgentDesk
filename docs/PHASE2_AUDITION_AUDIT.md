@@ -1,5 +1,8 @@
 # Phase 2 Live Agent Audition Audit
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 Date: 2026-09-08
 
 Status: **Phase 2 live gate passed**
