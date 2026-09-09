@@ -1,7 +1,7 @@
 "use client";
 
-import { Menu, Moon, X } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { Check, Menu, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CubeMark } from "@/components/Hero";
 
 const STEPS = ["Ask", "Details", "Test", "Best match", "Check", "Hire"];
@@ -16,13 +16,57 @@ function AmbientBackground() {
 
 function AgentDeskNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const menu = mobileMenuRef.current;
+    const links = Array.from(menu?.querySelectorAll<HTMLAnchorElement>("a") ?? []);
+    links[0]?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        return;
+      }
+
+      if (event.key !== "Tab" || !links.length) return;
+      const first = links[0];
+      const last = links[links.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node | null;
+      if (!target || menu?.contains(target) || menuButtonRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [menuOpen]);
+
   return <header className="ad-navbar">
     <a className="ad-brand" href="/" aria-label="AgentDesk home"><CubeMark /><span>Agent<span>Desk</span></span></a>
     <nav className="ad-nav-links" aria-label="Primary navigation">
       <a className="active" href="/">Marketplace</a><a href="#how-it-works">How it works</a><a href="https://github.com/emmy16-glitch/AgentDesk#readme" target="_blank" rel="noreferrer">For builders</a><a href="/proof/">Docs</a>
     </nav>
-    <div className="ad-nav-utility"><Moon size={19} aria-hidden="true" /><button type="button" className="ad-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
-    {menuOpen ? <nav className="ad-mobile-menu" aria-label="Mobile navigation"><a href="/" onClick={() => setMenuOpen(false)}>Marketplace</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="https://github.com/emmy16-glitch/AgentDesk#readme" target="_blank" rel="noreferrer">For builders</a><a href="/proof/">Docs</a></nav> : null}
+    <div className="ad-nav-utility"><button ref={menuButtonRef} type="button" className="ad-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="agentdesk-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
+    {menuOpen ? <nav ref={mobileMenuRef} id="agentdesk-mobile-menu" className="ad-mobile-menu" aria-label="Mobile navigation"><a href="/" onClick={() => setMenuOpen(false)}>Marketplace</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="https://github.com/emmy16-glitch/AgentDesk#readme" target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>For builders</a><a href="/proof/" onClick={() => setMenuOpen(false)}>Docs</a></nav> : null}
   </header>;
 }
 
@@ -32,7 +76,7 @@ export function ProgressStepper({ step }: { step: number }) {
     <ol className="ad-stepper" aria-label="AgentDesk workflow">
       {STEPS.map((label, index) => {
         const number = index + 1;
-        return <li key={label} className={number < step ? "complete" : number === step ? "current" : ""} aria-current={number === step ? "step" : undefined}><span>{number < step ? "✓" : number}</span><b>{label}</b></li>;
+        return <li key={label} className={number < step ? "complete" : number === step ? "current" : ""} aria-current={number === step ? "step" : undefined}><span>{number < step ? <Check size={14} aria-hidden="true" /> : number}</span><b>{label}</b></li>;
       })}
     </ol>
     <p className="ad-mobile-step">Step {step} of 6 <span>·</span> {current}</p>
