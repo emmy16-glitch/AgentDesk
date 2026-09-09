@@ -86,12 +86,12 @@ export function getCamberBrainAgentTag(): string {
 }
 
 export function camberBrainEnabled(): boolean {
+  // Remote Camber is deliberately opt-in. The production app stays on AgentDesk Brain
+  // unless both a valid OAuth MCP token exists and CAMBER_BRAIN_ENABLED=true is set.
   const explicit = process.env.CAMBER_BRAIN_ENABLED?.trim().toLowerCase();
-  if (explicit === "false") return false;
-  if (explicit && explicit !== "true") return false;
+  if (explicit !== "true") return false;
 
-  // Camber's remote MCP uses OAuth. A Camber CLI API key is not an MCP OAuth token
-  // and must never make production report the remote Brain as enabled.
+  // Camber's remote MCP uses OAuth. A Camber CLI API key is not an MCP OAuth token.
   const oauthAccessToken = process.env.CAMBER_MCP_ACCESS_TOKEN?.trim();
   return Boolean(oauthAccessToken && getCamberBrainAgentTag());
 }
@@ -115,7 +115,7 @@ export async function analyseWithCamber(input: BrainAnalysisInput): Promise<Brai
 
   return {
     provider: "camber",
-    providerLabel: "AgentDesk Brain · powered by Camber",
+    providerLabel: "AgentDesk Brain",
     decision,
     headline,
     summary,
@@ -125,7 +125,7 @@ export async function analyseWithCamber(input: BrainAnalysisInput): Promise<Brai
     watchouts: asStrings(parsed.watchouts),
     nextQuestion: asString(parsed.nextQuestion),
     boundary: asString(parsed.boundary)
-      ?? "Camber explains the supplied AgentDesk evidence but does not create proof or change any verification state.",
+      ?? "AgentDesk Brain explains supplied evidence but does not create proof or change any verification state.",
     generatedAt: new Date().toISOString(),
     conversationId: response.conversationId,
     model: process.env.CAMBER_BRAIN_MODEL?.trim() || undefined,
