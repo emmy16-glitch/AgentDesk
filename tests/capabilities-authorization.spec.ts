@@ -59,9 +59,10 @@ test("permission duration only accepts the bounded supported windows", () => {
 test("ERC-8183 expiry follows the selected permission window", () => {
   const nowMs = Date.UTC(2026, 8, 9, 12, 0, 0);
   const nowSeconds = BigInt(Math.floor(nowMs / 1000));
-  expect(permissionExpirySeconds(1, nowMs)).toBe(nowSeconds + 86_400n);
-  expect(permissionExpirySeconds(7, nowMs)).toBe(nowSeconds + 7n * 86_400n);
-  expect(permissionExpirySeconds(30, nowMs)).toBe(nowSeconds + 30n * 86_400n);
+  const day = BigInt(86_400);
+  expect(permissionExpirySeconds(1, nowMs)).toBe(nowSeconds + day);
+  expect(permissionExpirySeconds(7, nowMs)).toBe(nowSeconds + BigInt(7) * day);
+  expect(permissionExpirySeconds(30, nowMs)).toBe(nowSeconds + BigInt(30) * day);
 });
 
 test("capability commitment changes when the user's permissions change", () => {
