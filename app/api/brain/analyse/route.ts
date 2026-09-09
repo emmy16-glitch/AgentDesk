@@ -9,7 +9,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_OUTPUT_LENGTH = 80_000;
-const FRIENDLY_CAMBER_FALLBACK = "AgentDesk used its built-in evidence engine for this check.";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -43,15 +42,13 @@ export async function POST(request: NextRequest) {
     };
 
     let analysis = buildEvidenceEngineAnalysis(input);
-    let camberAttempted = false;
     if (camberBrainEnabled()) {
-      camberAttempted = true;
       try {
         analysis = await analyseWithCamber(input);
       } catch (error) {
-        const technicalReason = error instanceof Error ? error.message : "Camber Brain was unavailable";
-        console.warn("[AgentDesk Brain] Camber remote analysis unavailable; using deterministic fallback.", technicalReason);
-        analysis = buildEvidenceEngineAnalysis(input, FRIENDLY_CAMBER_FALLBACK);
+        const technicalReason = error instanceof Error ? error.message : "Remote Brain provider unavailable";
+        console.warn("[AgentDesk Brain] Optional remote analysis unavailable; continuing with built-in analysis.", technicalReason);
+        analysis = buildEvidenceEngineAnalysis(input);
       }
     }
 
@@ -61,9 +58,7 @@ export async function POST(request: NextRequest) {
       verification,
       analysis,
       brain: {
-        camberConfigured: camberBrainEnabled(),
-        camberAttempted,
-        proofBoundary: "Brain analysis explains existing evidence. It never changes an ERC-8004 identity state, an ERC-8183 job state, or an independent verification result.",
+        proofBoundary: "AgentDesk Brain explains existing evidence. It never changes an ERC-8004 identity state, an ERC-8183 job state, or an independent verification result.",
       },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
