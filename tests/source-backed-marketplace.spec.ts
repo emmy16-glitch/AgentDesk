@@ -306,7 +306,7 @@ test("category depth keeps scenario capital free and Brain cannot manufacture pr
   await expect(depth.getByText("Scenario capital only — pool context can be checked without depositing funds", { exact: true })).toBeVisible();
   await expect(depth.getByText("AgentDesk Brain · powered by Camber", { exact: true })).toBeVisible();
   await expect(depth.getByText("MIXED", { exact: true })).toBeVisible();
-  await expect(depth.getByText(/APY remains unverified/i)).toBeVisible();
+  await expect(depth.getByText(/APY remains unverified/i).first()).toBeVisible();
   await expect(depth.getByText(/does not create proof/i).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
