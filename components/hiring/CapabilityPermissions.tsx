@@ -13,6 +13,7 @@ interface Props {
 }
 
 const TOOL_BUDGETS = ["0.05", "0.10", "0.25", "1.00"] as const;
+const DURATION_DAYS = [1, 7, 30] as const;
 
 function ToggleRow({
   label,
@@ -85,6 +86,10 @@ export default function CapabilityPermissions({ value, onChange, locked = false 
     onChange({ ...value, maxToolSpend: { amount, asset: "$U" } });
   }
 
+  function setDuration(permissionDurationDays: 1 | 7 | 30) {
+    onChange({ ...value, permissionDurationDays });
+  }
+
   const summary = capabilityPolicySummary(value);
 
   return <section className={`hire-capabilities ${open ? "open" : ""}`} aria-label="Capabilities and permissions">
@@ -116,8 +121,8 @@ export default function CapabilityPermissions({ value, onChange, locked = false 
 
       {value.paidIntelligence ? <div className="hire-paid-settings">
         <div className="hire-paid-setting">
-          <span><strong>Maximum tool spend</strong><small>Per hired task, not per click.</small></span>
-          <div className="hire-budget-options" role="radiogroup" aria-label="Maximum paid intelligence spend">
+          <span><strong>Max paid call</strong><small>AgentDesk will not approve a single paid-tool proposal above this amount.</small></span>
+          <div className="hire-budget-options" role="radiogroup" aria-label="Maximum paid intelligence call">
             {TOOL_BUDGETS.map((amount) => <button
               key={amount}
               type="button"
@@ -131,7 +136,7 @@ export default function CapabilityPermissions({ value, onChange, locked = false 
         </div>
 
         <div className="hire-paid-setting">
-          <span><strong>Approved intelligence</strong><small>The agent may only pay providers you leave enabled.</small></span>
+          <span><strong>Approved intelligence</strong><small>The agent may only request paid calls from providers you leave enabled.</small></span>
           <div className="hire-tool-options">
             {PAID_TOOL_CATALOG.map((tool) => {
               const active = value.approvedPaidTools.includes(tool.id);
@@ -153,6 +158,21 @@ export default function CapabilityPermissions({ value, onChange, locked = false 
       <div className="hire-permission-row readonly">
         <div><strong>Transactions</strong><small>The task’s action rule cannot be made more permissive at hire time.</small></div>
         <span>{value.execution === "approval-required" ? "Ask first" : "Off"}</span>
+      </div>
+
+      <div className="hire-permission-row duration">
+        <div><strong>Permission window</strong><small>The ERC-8183 job uses the same bounded expiry.</small></div>
+        <div className="hire-duration-options" role="radiogroup" aria-label="Permission duration">
+          {DURATION_DAYS.map((days) => <button
+            key={days}
+            type="button"
+            role="radio"
+            aria-checked={value.permissionDurationDays === days}
+            className={value.permissionDurationDays === days ? "active" : ""}
+            disabled={locked}
+            onClick={() => setDuration(days)}
+          >{days === 1 ? "1 day" : `${days} days`}</button>)}
+        </div>
       </div>
 
       <p className="hire-capability-note">Auditions stay free and read-only. AgentDesk does not spend on Cournot, Telegraph or another paid tool before the hire.</p>
