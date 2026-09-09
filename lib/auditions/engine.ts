@@ -1,6 +1,6 @@
 import { resolveOnChainAgentIdentity } from "@/lib/erc8004-registry";
 import { auditionA2AService } from "@/lib/auditions/a2a";
-import type { AuditionEvidence, AuditionRequest, AuditionResult, TaskFitExplanation } from "@/lib/auditions/types";
+import type { AuditionEvidence, AuditionRequest, AuditionResponseKind, AuditionResult, TaskFitExplanation } from "@/lib/auditions/types";
 
 function explainTaskFit(result: {
   status: AuditionResult["status"];
@@ -8,6 +8,7 @@ function explainTaskFit(result: {
   quote: AuditionResult["quote"];
   hasA2AService: boolean;
   hasOutput: boolean;
+  responseKind?: AuditionResponseKind;
 }): TaskFitExplanation {
   const reasons: string[] = [];
   const missingEvidence: string[] = [];
@@ -15,7 +16,10 @@ function explainTaskFit(result: {
   if (result.hasA2AService) reasons.push("The ERC-8004 registration advertises an A2A service endpoint.");
   else missingEvidence.push("No A2A service is advertised in the resolved ERC-8004 metadata.");
 
-  if (result.status === "completed" && result.hasOutput) {
+  if (result.status === "completed" && result.hasOutput && result.responseKind === "capability-offer") {
+    reasons.push("The agent returned a live pre-hire capability/service offer for this category.");
+    missingEvidence.push("The agent advertised that it can do the work, but it did not execute the requested task during this audition.");
+  } else if (result.status === "completed" && result.hasOutput) {
     reasons.push("The agent returned a task-specific response to a bounded read-only audition request.");
   } else if (result.status === "timeout") {
     missingEvidence.push("The audition timed out, so AgentDesk has no current task-specific result.");
@@ -32,7 +36,9 @@ function explainTaskFit(result: {
   else missingEvidence.push("No machine-readable current quote was returned.");
 
   if (result.status === "completed" && result.hasOutput) {
-    missingEvidence.push("AgentDesk has not yet independently validated the economic correctness of the returned strategy/output.");
+    if (result.responseKind !== "capability-offer") {
+      missingEvidence.push("AgentDesk has not yet independently validated the economic correctness of the returned strategy/output.");
+    }
     return { label: "PARTIAL FIT", reasons, missingEvidence };
   }
 
@@ -55,6 +61,12 @@ function isAgentCardServiceName(name: string): boolean {
 
 function hasUnresolvedTemplate(endpoint: string): boolean {
   return /\{[^{}]+\}/.test(endpoint);
+}
+
+function classifyResponseKind(status: AuditionResult["status"], output: string | null): AuditionResponseKind | undefined {
+  if (status !== "completed" || !output) return undefined;
+  const looksLikeCapabilityOffer = /live pre-hire service offer|live capability\/quote response|inputs the agent says it needs/i.test(output);
+  return looksLikeCapabilityOffer ? "capability-offer" : "task-result";
 }
 
 export async function runAudition(request: AuditionRequest): Promise<AuditionResult> {
@@ -130,12 +142,14 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     : a2aService;
 
   const execution = await auditionA2AService(auditionService, request.task);
+  const responseKind = classifyResponseKind(execution.status, execution.output);
   const taskFit = explainTaskFit({
     status: execution.status,
     latencyMs: execution.latencyMs,
     quote: execution.quote,
     hasA2AService: true,
     hasOutput: Boolean(execution.output),
+    responseKind,
   });
 
   return {
@@ -156,6 +170,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     checkedAt: execution.checkedAt,
     quote: execution.quote,
     output: execution.output,
+    ...(responseKind ? { responseKind } : {}),
     evidence: [...baseEvidence, ...execution.evidence],
     taskFit,
     ...(execution.error ? { error: execution.error } : {}),
