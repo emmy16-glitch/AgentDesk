@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentDesk Brain Analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision",
+    "headline",
+    "summary",
+    "verifiedFacts",
+    "unresolvedClaims",
+    "conflicts",
+    "watchouts",
+    "nextQuestion",
+    "boundary"
+  ],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["LEADING EVIDENCE", "MIXED", "INSUFFICIENT", "CONFLICT"]
+    },
+    "headline": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "verifiedFacts": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+    "unresolvedClaims": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+    "conflicts": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+    "watchouts": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+    "nextQuestion": { "type": ["string", "null"], "maxLength": 400 },
+    "boundary": { "type": "string", "minLength": 1, "maxLength": 500 }
+  }
+}

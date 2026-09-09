@@ -5,6 +5,12 @@ function optionalLine(label: string, value?: string): string[] {
   return clean ? [`${label}: ${clean}`] : [];
 }
 
+const STRUCTURED_BOUNDARY = [
+  "Where your service can return machine-readable data, end the response with one JSON object under the key \"agentdesk\".",
+  "Do not invent a field just to satisfy the schema. Use null or omit it when you cannot support the value with current evidence.",
+  "The prose answer remains allowed; the JSON block exists so AgentDesk can independently compare reproducible claims against BNB state.",
+];
+
 export function buildAuditionPrompt(task: AuditionTask): string {
   const safety = [
     "This is a bounded read-only pre-hire audition.",
@@ -23,6 +29,8 @@ export function buildAuditionPrompt(task: AuditionTask): string {
         ...optionalLine("Monitoring goal", task.goal),
         ...optionalLine("Additional instructions", task.instructions),
         "Please state protocol coverage, what position/health-factor information you can currently observe, alert capability, assumptions, data source/timestamp, and quote if one exists.",
+        ...STRUCTURED_BOUNDARY,
+        'Preferred machine-readable shape: {"agentdesk":{"protocol":"Venus","healthFactor":null,"shortfall":null,"liquidationRisk":"unknown"}}',
       ].join("\n");
 
     case "Yield Optimisation":
@@ -34,6 +42,8 @@ export function buildAuditionPrompt(task: AuditionTask): string {
         ...optionalLine("Risk preference", task.riskPreference),
         ...optionalLine("Additional instructions", task.instructions),
         "Please propose a read-only yield route/opportunity, supported protocol, estimated yield only when source-backed, assumptions/risks, data source/timestamp, and quote if one exists.",
+        ...STRUCTURED_BOUNDARY,
+        'Preferred machine-readable shape: {"agentdesk":{"protocol":null,"venue":null,"pair":null,"poolAddress":null,"estimatedApyPct":null}}',
       ].join("\n");
 
     case "Grid Trading":
@@ -46,6 +56,8 @@ export function buildAuditionPrompt(task: AuditionTask): string {
         ...optionalLine("Risk preference", task.riskPreference),
         ...optionalLine("Additional instructions", task.instructions),
         "Please propose grid parameters without placing orders, state supported venue, assumptions, live market context/source and timestamp, expected fees where supportable, and quote if one exists.",
+        ...STRUCTURED_BOUNDARY,
+        'Preferred machine-readable shape: {"agentdesk":{"venue":null,"pair":null,"lowerPrice":null,"upperPrice":null,"gridCount":null,"feeTier":null}}',
       ].join("\n");
 
     case "Rebalancing":
@@ -56,6 +68,8 @@ export function buildAuditionPrompt(task: AuditionTask): string {
         `Objective: ${task.objective.trim()}`,
         ...optionalLine("Additional instructions", task.instructions),
         "Please propose allocation/range changes without executing them, list the actions you would take, supported protocol, assumptions, data source/timestamp, and quote if one exists.",
+        ...STRUCTURED_BOUNDARY,
+        'Preferred machine-readable shape: {"agentdesk":{"protocol":null,"targetAllocations":{"BNB":60,"USDT":40}}}',
       ].join("\n");
   }
 }

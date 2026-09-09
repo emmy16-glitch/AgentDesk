@@ -134,6 +134,78 @@ async function mockAuditions(page: Page) {
   });
 }
 
+async function mockBrain(page: Page) {
+  await page.route("**/api/brain/analyse", async (route) => {
+    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string } };
+    expect(body.task.category).toBe("Yield Optimisation");
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        tokenId: body.tokenId,
+        verification: {
+          status: "VERIFIED CONTEXT",
+          category: "Yield Optimisation",
+          checkedAt: "2026-09-09T00:20:00.000Z",
+          blockNumber: "61000000",
+          blockTimestamp: "2026-09-09T00:19:59.000Z",
+          outputHash: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          checks: [
+            {
+              id: "yield-asset",
+              label: "Yield asset identity",
+              status: "verified",
+              summary: "USDC resolves to the canonical BNB token contract.",
+              source: "BNB Chain token 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+              observedAt: "2026-09-09T00:20:00.000Z",
+            },
+            {
+              id: "yield-economic-claim",
+              label: "Yield/APY claim",
+              status: "not-verifiable",
+              summary: "APY remains unverified without a reproduced protocol rate source.",
+              source: "AgentDesk evidence boundary",
+              observedAt: "2026-09-09T00:20:00.000Z",
+            },
+          ],
+          depth: {
+            verdict: "MIXED EVIDENCE",
+            title: "Yield route evidence",
+            scenarioLabel: "Scenario capital only — pool context can be checked without depositing funds",
+            verifiedCount: 1,
+            conflictCount: 0,
+            unresolvedCount: 1,
+            errorCount: 0,
+            machineReadableClaims: false,
+            highlights: ["USDC resolves to the canonical BNB token contract."],
+          },
+          boundary: "Independent checks verify only reproducible BNB facts and deterministic scenario math.",
+        },
+        analysis: {
+          provider: "camber",
+          providerLabel: "AgentDesk Brain · powered by Camber",
+          decision: "MIXED",
+          headline: "The route has live token context, but the yield claim is still unresolved.",
+          summary: "AgentDesk reproduced the token identity while preserving the APY as unverified.",
+          verifiedFacts: ["USDC resolves to the canonical BNB token contract."],
+          unresolvedClaims: ["APY remains unverified without a reproduced protocol rate source."],
+          conflicts: [],
+          watchouts: ["Pool existence does not prove future returns."],
+          nextQuestion: "Can the agent provide a machine-readable protocol rate source?",
+          boundary: "Camber explains the supplied evidence but does not create proof.",
+          generatedAt: "2026-09-09T00:20:01.000Z",
+        },
+        brain: {
+          camberConfigured: true,
+          camberAttempted: true,
+          proofBoundary: "Brain analysis explains existing evidence and never changes proof state.",
+        },
+      }),
+    });
+  });
+}
+
 async function assertNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -214,6 +286,28 @@ test("two live auditions race, stay blind, and produce a transparent comparison"
   await expect(page.getByText(/Blind audition mode is on/i)).toBeVisible();
   await expect(page.getByText(/No global trust percentage is used/i)).toBeVisible();
   await expect(page.getByText("Trust Score", { exact: true })).toHaveCount(0);
+  await assertNoHorizontalOverflow(page);
+});
+
+test("category depth keeps scenario capital free and Brain cannot manufacture proof", async ({ page }) => {
+  await mockDiscovery(page);
+  await mockAuditions(page);
+  await mockBrain(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Run live auditions (2)" }).click();
+  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
+
+  const depthButton = page.getByRole("button", { name: "Run depth checks + Brain" }).first();
+  await expect(depthButton).toBeVisible();
+  await depthButton.click();
+
+  const depth = page.getByLabel("Yield Optimisation depth analysis").first();
+  await expect(depth.getByText("MIXED EVIDENCE", { exact: true })).toBeVisible();
+  await expect(depth.getByText("Scenario capital only — pool context can be checked without depositing funds", { exact: true })).toBeVisible();
+  await expect(depth.getByText("AgentDesk Brain · powered by Camber", { exact: true })).toBeVisible();
+  await expect(depth.getByText("MIXED", { exact: true })).toBeVisible();
+  await expect(depth.getByText(/APY remains unverified/i).first()).toBeVisible();
+  await expect(depth.getByText(/does not create proof/i).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 

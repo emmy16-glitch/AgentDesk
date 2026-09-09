@@ -50,7 +50,7 @@ function buildMessage(message: string, conversation?: Conversation): string {
 
   const history = conversation.turns
     .slice(-maxHistoryTurns)
-    .map((turn) => `${turn.role === "user" ? "User" : "HealthGuard AI"}: ${turn.content}`)
+    .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
     .join("\n");
 
   return `Conversation context:\n${history}\n\nUser follow-up: ${message}`;
@@ -67,17 +67,22 @@ export async function chatWithCamber({
   message: string;
   conversationId?: string;
 }) {
-  const token = process.env.CAMBER_TOKEN;
-  if (!token) throw new CamberError("CAMBER_TOKEN is not configured.");
+  const token = process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim();
+  if (!token) throw new CamberError("Camber API credentials are not configured.");
 
   const previousConversation = conversationId ? conversations.get(conversationId) : undefined;
   const prompt = buildMessage(message, previousConversation?.agentId === agentId ? previousConversation : undefined);
+  const cliPath = process.env.CAMBER_CLI_PATH?.trim() || "camber";
 
   try {
     const { stdout } = await execFileAsync(
-      "camber",
-      ["chat", "--agent", agentTag, "--message", prompt, "--output", "json", "--api-key", token],
-      { timeout: 30_000, maxBuffer: 1_024 * 1_024 },
+      cliPath,
+      ["chat", "--agent", agentTag, "--message", prompt, "--output", "json"],
+      {
+        timeout: 30_000,
+        maxBuffer: 1_024 * 1_024,
+        env: { ...process.env, CAMBER_API_KEY: token },
+      },
     );
     const payload = parseJson(stdout);
     const answer = getAnswer(payload);
