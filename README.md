@@ -19,6 +19,15 @@ Describe a task
 
 The hackathon product and architecture direction is locked in [`HACKATHON_LOCK.md`](./HACKATHON_LOCK.md). Treat that file as the source of truth before making product, UI, data, or integration changes.
 
+## Judge quick links
+
+- [`SUBMISSION.md`](./SUBMISSION.md) — judge-ready project description and proof map
+- [`docs/FINAL_DEMO_RUNBOOK.md`](./docs/FINAL_DEMO_RUNBOOK.md) — 3–5 minute demo sequence
+- [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) — completed work vs the remaining authenticated/manual gates
+- [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) — dependency hardening and remaining advisory boundary
+- `/proof` — deployed evidence ladder
+- `/api/submission` — machine-readable implementation/proof-gate status
+
 ## Current status
 
 ### Phase 1 — real discovery ✅
@@ -45,7 +54,7 @@ Production hardening includes security headers, liveness/readiness endpoints, ju
 
 See [`docs/PRODUCTION_RUNBOOK.md`](./docs/PRODUCTION_RUNBOOK.md) and [`docs/JUDGE_DEMO.md`](./docs/JUDGE_DEMO.md).
 
-### Phase 5 — AgentDesk Brain + four-category depth
+### Phase 5 — AgentDesk Brain + four-category depth ✅
 
 The four task families now have category-specific verification paths that do **not** require trading capital:
 
@@ -60,7 +69,15 @@ Agents are asked to optionally expose precise claims in an `agentdesk` JSON bloc
 
 After independent checks, **AgentDesk Brain** explains verified facts, unresolved claims, conflicts, watchouts and the best next question. When a Camber Brain is configured, Camber powers that explanation. Otherwise AgentDesk uses a deterministic evidence-engine fallback. Either way, the Brain cannot change proof state.
 
+The owner's Camber agent `@emmanuel.Agentdesk-brain` has been account-side tested against the proof-boundary prompt. That Camber test proves the explanatory agent is reachable; it does not turn Camber into an ERC-8004 marketplace identity or an ERC-8183 job proof.
+
 See [`docs/PHASE5_BRAIN_CATEGORY_DEPTH.md`](./docs/PHASE5_BRAIN_CATEGORY_DEPTH.md) and [`camber/agentdesk-brain/`](./camber/agentdesk-brain/).
+
+### Final production/security pass ✅
+
+The maintained Next.js line is pinned to `15.5.24`, the previously observed critical npm advisory has been removed, safe non-breaking transitive fixes were applied, GitHub Actions run on the v5 actions runtime, CI blocks critical runtime advisories, and Dependabot is enabled.
+
+The dependency tree is **not claimed to be vulnerability-free**; remaining inherited high/moderate advisories are documented in [`docs/SECURITY_STATUS.md`](./docs/SECURITY_STATUS.md) rather than hidden or force-fixed through unreviewed breaking upgrades.
 
 ## Evidence vocabulary
 
@@ -118,7 +135,13 @@ npm run test:ui
 
 Camber Brain is an explanatory layer only. A Camber agent tag does not count as ERC-8004 marketplace identity, liveness, Task Fit, hiring evidence, transaction evidence or job completion.
 
-The source-controlled Camber Context Bundle lives in `camber/agentdesk-brain/`. Creating/syncing the actual account-side Camber agent requires an authenticated Camber account/CLI or MCP session.
+The source-controlled Camber Context Bundle lives in `camber/agentdesk-brain/`. Creating/syncing the full account-side Context Mirror requires an authenticated Camber CLI/compatible MCP session. The production marketplace does **not** depend on Camber being present: if the Camber call cannot run, the deterministic evidence engine remains the truthful fallback.
+
+## Public deployment boundary
+
+The BNB main track requires a functional, publicly accessible marketplace during judging. The repository is production-ready, but the final public hosting project must be imported/configured in the owner's hosting account. Do not invent a deployment URL in documentation before that host exists.
+
+See [`docs/FINAL_SUBMISSION_CHECKLIST.md`](./docs/FINAL_SUBMISSION_CHECKLIST.md) for the exact remaining account-side deployment steps.
 
 ## Historical prototype contract
 
