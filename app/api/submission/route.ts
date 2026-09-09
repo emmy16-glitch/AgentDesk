@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
   const camberEnabled = camberBrainEnabled();
+  const camberOauthPresent = Boolean(process.env.CAMBER_MCP_ACCESS_TOKEN?.trim());
+  const camberCliApiKeyPresent = Boolean(process.env.CAMBER_API_KEY?.trim());
 
   return NextResponse.json({
     ok: true,
@@ -25,9 +27,16 @@ export async function GET() {
     runtime: {
       camberBrainEnabled: camberEnabled,
       brainMode: camberEnabled ? "camber-remote-mcp-with-deterministic-fallback" : "deterministic-evidence-engine",
-      camberTransport: "https-remote-mcp",
+      camberTransport: "https-remote-mcp-oauth",
       camberAgentTag: getCamberBrainAgentTag(),
-      camberCredentialPresent: Boolean(process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim()),
+      camberCredentialPresent: camberOauthPresent,
+      camberOauthAccessTokenPresent: camberOauthPresent,
+      camberCliApiKeyPresent,
+      camberAuthNote: camberEnabled
+        ? "Remote Camber MCP has an OAuth access token configured."
+        : camberCliApiKeyPresent
+          ? "A Camber CLI API key is present, but Camber remote MCP requires OAuth; AgentDesk is using its deterministic Brain fallback."
+          : "Camber remote MCP OAuth is not configured; AgentDesk is using its deterministic Brain fallback.",
     },
     openProofGates: {
       realExternalPaidErc8183Job: {
