@@ -1,21 +1,21 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ArrowLeftRight, Check, CircleAlert, CircleHelp, Loader2, Scale, ShieldCheck, TrendingUp, WalletCards, X } from "lucide-react";
 import AgentDeskShell from "@/components/agentdesk/AgentDeskShell";
 import IndependentCheck from "@/components/auditions/IndependentCheck";
 import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
 import { useWallet } from "@/components/wallet/WalletProvider";
-import { compareAuditions, type ComparedAudition } from "@/lib/auditions/compare";
+import { type ComparedAudition } from "@/lib/auditions/compare";
 import type { AuditionResult, AuditionTask } from "@/lib/auditions/types";
 import { actionPolicyLabel, dataPolicyLabel, protocolRuleLabel, rulesSummary } from "@/lib/guardrails/labels";
 import type { ActionPolicy, RiskTolerance, RuleCheck, TaskGuardrails } from "@/lib/guardrails/types";
-import type { DiscoveredAgent, MarketplaceCategory } from "@/lib/8004scan";
+import type { MarketplaceCategory } from "@/lib/8004scan";
+import { useDiscoveryStream } from "@/hooks/useDiscoveryStream";
 
 type Stage = 1 | 2 | 3 | 4 | 5 | 6;
 type RaceStatus = AuditionResult["status"] | "running" | "request-error";
 type RaceEntry = { tokenId: number; status: RaceStatus; latencyMs?: number | null; error?: string };
-type AuditionResponse = { ok: boolean; error?: string; result?: AuditionResult };
 
 const choices: Array<{ id: MarketplaceCategory; label: string; short: string; icon: typeof ShieldCheck }> = [
   { id: "Health Factor Monitoring", label: "Protect", short: "Monitor lending risk", icon: ShieldCheck },
@@ -24,7 +24,7 @@ const choices: Array<{ id: MarketplaceCategory; label: string; short: string; ic
   { id: "Rebalancing", label: "Balance", short: "Review allocations", icon: Scale },
 ];
 
-export default function GuidedMarketplace({ agents, discoveryLoading, discoveryError }: { agents: DiscoveredAgent[]; discoveryLoading: boolean; discoveryError: string | null }) {
+export default function GuidedMarketplace() {
   const [stage, setStage] = useState<Stage>(1);
   const [category, setCategory] = useState<MarketplaceCategory>("Yield Optimisation");
   const [prompt, setPrompt] = useState("");
@@ -43,14 +43,14 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
   const [capital, setCapital] = useState("500 USDT");
   const [portfolio, setPortfolio] = useState("");
   const [objective, setObjective] = useState("");
-  const [race, setRace] = useState<RaceEntry[]>([]);
-  const [results, setResults] = useState<ComparedAudition[]>([]);
-  const [failures, setFailures] = useState<Array<{ tokenId: number; error: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const { connected, openConnect } = useWallet();
-
-  const candidates = useMemo(() => agents.filter((agent) => agent.categories.includes(category)).slice(0, 4), [agents, category]);
-  const names = useMemo(() => new Map(agents.map((agent) => [agent.tokenId, agent.name])), [agents]);
+  const discovery = useDiscoveryStream();
+  const race = discovery.race;
+  const results = discovery.results;
+  const failures: Array<{ tokenId: number; error: string }> = [];
+  const streamError = discovery.error;
+  const names = useMemo(() => new Map(discovery.shortlist.map((agent) => [agent.tokenId, agent.name])), [discovery.shortlist]);
   const best = results.find((result) => !result.ruleEvaluation.hardFailure);
   const hasNoEligibleWinner = results.length > 0 && !best;
 
@@ -63,7 +63,7 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
   }), [actionPolicy, approvedProtocols, category, maxPrice, maxPriceAsset, risk]);
 
   function invalidateDependentResults() {
-    setResults([]); setRace([]); setFailures([]);
+    discovery.abort(); discovery.reset();
   }
 
   function updateRisk(value: RiskTolerance) { setRisk(value); invalidateDependentResults(); }
@@ -95,32 +95,16 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
     if (protocolRestriction !== null && !protocolRestriction.trim()) return setError("Name the protocol you want to allow, or choose Any protocol.");
     const task = buildTask();
     if (!task) return setError("Complete the required details so AgentDesk can test the right agents.");
-    if (discoveryLoading) return setError("Live agent discovery is still loading. Please wait a moment.");
-    if (discoveryError) return setError("Live agent discovery is unavailable right now. You can try again shortly.");
-    if (!candidates.length) return setError("No source-qualified agents match this task right now. Try a different task type.");
-    setError(null); setRace(candidates.map((candidate) => ({ tokenId: candidate.tokenId, status: "running" }))); setResults([]); setFailures([]); setStage(3);
-    const outcomes = await Promise.all(candidates.map(async (candidate) => {
-      try {
-        const response = await fetch("/api/auditions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tokenId: candidate.tokenId, task }) });
-        const body = await response.json() as AuditionResponse;
-        if (!response.ok || !body.ok || !body.result) throw new Error(body.error || "The agent could not respond.");
-        setRace((current) => current.map((entry) => entry.tokenId === candidate.tokenId ? { ...entry, status: body.result!.status, latencyMs: body.result!.latencyMs, error: body.result!.error } : entry));
-        return { result: body.result, failure: null as string | null };
-      } catch (cause) {
-        const failure = cause instanceof Error ? cause.message : "The agent could not respond.";
-        setRace((current) => current.map((entry) => entry.tokenId === candidate.tokenId ? { ...entry, status: "request-error", error: failure } : entry));
-        return { result: null, failure };
-      }
-    }));
-    const completed = outcomes.flatMap((outcome) => outcome.result ? [outcome.result] : []);
-    setResults(compareAuditions(completed, task.guardrails));
-    setFailures(outcomes.flatMap((outcome, index) => outcome.failure ? [{ tokenId: candidates[index].tokenId, error: outcome.failure }] : []));
-    if (!completed.length) setError("The matching agents could not return a comparable answer. You can go back and try another task.");
+    setError(null); setStage(3); void discovery.start(task);
   }
 
-  function back() { setError(null); setStage((current) => Math.max(1, current - 1) as Stage); }
-  function reset() { setStage(1); setResults([]); setRace([]); setFailures([]); setError(null); }
+  function back() { if (stage === 3) discovery.abort(); setError(null); setStage((current) => Math.max(1, current - 1) as Stage); }
+  function reset() { discovery.abort(); discovery.reset(); setStage(1); setError(null); }
   const activeChoice = choices.find((choice) => choice.id === category)!;
+
+  useEffect(() => {
+    if (stage === 3 && discovery.phase === "complete" && discovery.results.length) setStage(4);
+  }, [discovery.phase, discovery.results.length, stage]);
 
   return <AgentDeskShell step={stage}>
     {stage === 1 ? <form className="ad-ask ad-screen" onSubmit={beginDetails} noValidate>
@@ -156,7 +140,7 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
       {error ? <p className="ad-inline-error" role="alert">{error}</p> : null}<ScreenActions back={back} primary="Find agents" onPrimary={() => void beginTesting()} /> <FeatureFooter />
     </form> : null}
 
-    {stage === 3 ? <section className="ad-test ad-screen" aria-live="polite"><ScreenHeading title="We’re testing agents for you." description="AgentDesk is trying your task across matching agents and checking who performs best within your rules." center /><div className="ad-task-chip centered"><strong>{activeChoice.label}</strong><span>{prompt}</span></div><p className="ad-rules-test-note">Using your task + rules</p><section className="ad-surface ad-test-surface"><header><div><strong>Live testing</strong><p>We’re running your task on matching agents.</p></div><span>{race.length} agents <i /> Testing in parallel</span></header><div className="ad-race-list">{race.map((entry, index) => <RaceRow key={entry.tokenId} index={index} entry={entry} />)}</div>{!race.length ? <p className="ad-empty">Preparing the live test…</p> : null}<p className="ad-safety-note"><ShieldCheck size={18} /> No funds are used here. We only test agents first.</p><div className="ad-actions"><button className="ad-text-button" type="button" onClick={back}><ArrowLeft size={18} /> Back</button><button className="ad-primary" type="button" disabled={race.some((entry) => entry.status === "running")} onClick={() => setStage(4)}>{race.some((entry) => entry.status === "running") ? <><Loader2 className="spin" size={17} /> Testing agents</> : <>See results <ArrowRight size={18} /></>}</button></div></section><FeatureFooter /></section> : null}
+    {stage === 3 ? <section className="ad-test ad-screen" aria-live="polite"><ScreenHeading title={discovery.phase === "auditioning" ? `Testing ${discovery.shortlist.length} strong ${discovery.shortlist.length === 1 ? "match" : "matches"}` : discovery.phase === "comparing" ? "Comparing their results…" : "Finding the right agents"} description={discovery.phase === "auditioning" ? "AgentDesk is testing the strongest matches against your task and rules." : discovery.phase === "comparing" ? "Choosing the strongest result from the completed auditions." : "AgentDesk is searching for agents that match your task and rules."} center /><div className="ad-task-chip centered"><strong>{activeChoice.label}</strong><span>{prompt}</span></div><p className="ad-rules-test-note">Using your task + rules</p><section className="ad-surface ad-test-surface ad-stream-surface">{discovery.phase === "failed" ? <StreamFailure message={streamError || "We couldn’t find enough available agents right now."} onRetry={() => void beginTesting()} onBack={back} /> : race.length ? <><header><div><strong>Live testing</strong><p>Testing selected agents in parallel.</p></div><span>{race.length} selected <i /> Live auditions</span></header><div className="ad-race-list">{race.map((entry) => <RaceRow key={entry.tokenId} entry={{ tokenId: entry.tokenId, status: entry.status, latencyMs: entry.latencyMs, error: entry.message }} name={names.get(entry.tokenId)} />)}</div></> : <StreamActivity lines={discovery.activities} />}{discovery.phase !== "failed" ? <p className="ad-safety-note"><ShieldCheck size={18} /> No funds are used here. We only test agents first.</p> : null}<div className="ad-actions"><button className="ad-text-button" type="button" onClick={back}><ArrowLeft size={18} /> Back</button>{discovery.phase === "comparing" ? <span className="ad-stream-status"><Loader2 className="spin" size={16} /> Comparing</span> : null}</div></section><FeatureFooter /></section> : null}
 
     {stage === 4 ? <section className="ad-match ad-screen">{best ? <><ScreenHeading eyebrow="YOUR BEST MATCH" title={names.get(best.candidate.tokenId) || `Agent #${best.candidate.tokenId}`} description="The agent that performed best for your task." /><section className="ad-match-layout"><div className="ad-match-reasons"><Reason title="Answered your task" detail={best.output ? "Returned a usable task-specific result" : "No usable task output was returned"} /><Reason title={best.ruleEvaluation.status === "partial" ? "Fits what we could confirm" : "Fits your rules"} detail={ruleSummary(best)} /><Reason title="Clear price" detail={best.quote ? `${best.quote.amount} ${best.quote.asset}${best.ruleEvaluation.checks.find((check) => check.id === "price")?.status === "pass" ? " · within your limit" : ""}` : "A price was not returned"} />{best.ruleEvaluation.checks.length ? <RuleChecks checks={best.ruleEvaluation.checks} title="Why this fits you" compact /> : null}{best.quote ? <p className="ad-price"><small>Price</small><strong>{best.quote.amount} {best.quote.asset}</strong></p> : null}<div className="ad-actions"><button className="ad-primary" type="button" onClick={() => setStage(5)}>Check answer <ArrowRight size={18} /></button></div></div><div className="ad-agent-answer"><span>Agent’s answer</span><p>{best.output || "This agent did not return a usable answer."}</p><details><summary>View proof</summary><ul>{best.evidence.map((item, index) => <li key={`${item.kind}-${index}`}>{item.summary}</li>)}</ul></details></div></section>{results.length > 1 || failures.length ? <section className="ad-other-agents"><header><strong>Other agents</strong><span>Live results only</span></header>{results.filter((result) => result.candidate.tokenId !== best.candidate.tokenId).map((result) => <AgentRow key={result.candidate.tokenId} result={result} name={names.get(result.candidate.tokenId) || `Agent #${result.candidate.tokenId}`} />)}{failures.map((failure) => <div className="ad-agent-row" key={failure.tokenId}><span>{names.get(failure.tokenId) || "Agent"}</span><small>Couldn’t finish</small></div>)}</section> : null}</> : hasNoEligibleWinner ? <NoEligibleResult onEditRules={() => setStage(2)} onTryAnotherTask={reset} /> : <EmptyResult error={error} />}{best ? <ScreenActions back={back} primary="Check answer" onPrimary={() => setStage(5)} /> : !hasNoEligibleWinner ? <button className="ad-text-button" type="button" onClick={back}><ArrowLeft size={18} /> Back</button> : null}</section> : null}
 
@@ -179,7 +163,9 @@ function RulesSummary({ guardrails }: { guardrails: TaskGuardrails }) { return <
 function NoEligibleResult({ onEditRules, onTryAnotherTask }: { onEditRules: () => void; onTryAnotherTask: () => void }) { return <div className="ad-empty-result"><CircleAlert size={22} /><h2>No agent met all your rules.</h2><p>You can adjust your rules or try another task.</p><div className="ad-empty-actions"><button type="button" className="ad-primary" onClick={onEditRules}>Edit rules</button><button type="button" className="ad-secondary" onClick={onTryAnotherTask}>Try another task</button></div></div>; }
 function ScreenActions({ back, primary, onPrimary }: { back: () => void; primary?: string; onPrimary?: () => void }) { return <div className="ad-screen-actions"><button type="button" className="ad-secondary" onClick={back}><ArrowLeft size={18} /> Back</button>{primary ? <button type="button" className="ad-primary" onClick={onPrimary}>{primary} <ArrowRight size={18} /></button> : null}</div>; }
 function FeatureFooter() { return <div className="ad-feature-footer" id="how-it-works"><span><b>ϟ</b><strong>Real agents</strong><small>Live on BNB Chain</small></span><span><b>⌾</b><strong>Tested for you</strong><small>We compare their answers</small></span><span><b>Ⅲ</b><strong>Clear results</strong><small>See who performed best</small></span><span><b>◯</b><strong>You stay in control</strong><small>Hire only when you’re ready</small></span></div>; }
-function RaceRow({ entry, index }: { entry: RaceEntry; index: number }) { const complete = entry.status === "completed"; const failed = entry.status !== "running" && !complete; return <div className="ad-race-row"><span className={`ad-race-dot ${complete ? "complete" : failed ? "failed" : "running"}`}>{complete ? <Check size={14} /> : failed ? <CircleAlert size={14} /> : <Loader2 className="spin" size={14} />}</span><div><strong>Agent {index + 1}</strong><small>{complete ? "Returned an answer" : failed ? "Couldn’t finish" : "Testing…"}</small></div><b>{entry.latencyMs ? `${entry.latencyMs}ms` : statusLabel(entry.status)}</b></div>; }
+function StreamActivity({ lines }: { lines: string[] }) { return <div className="ad-stream-activity">{lines.length ? lines.slice(-3).map((line, index) => <p key={`${line}-${index}`} className={index === lines.slice(-3).length - 1 ? "current" : ""}>{index === lines.slice(-3).length - 1 ? <Loader2 className="spin" size={15} /> : <Check size={15} />}{line}</p>) : <p className="current"><Loader2 className="spin" size={15} />Preparing the search…</p>}</div>; }
+function StreamFailure({ message, onRetry, onBack }: { message: string; onRetry: () => void; onBack: () => void }) { return <div className="ad-stream-failure"><CircleAlert size={20} /><h2>{message}</h2><p>Try again, or adjust your task and rules.</p><div><button type="button" className="ad-secondary" onClick={onBack}>Edit details</button><button type="button" className="ad-primary" onClick={onRetry}>Try again</button></div></div>; }
+function RaceRow({ entry, name }: { entry: RaceEntry; name?: string }) { const complete = entry.status === "completed"; const failed = entry.status !== "running" && !complete; return <div className="ad-race-row"><span className={`ad-race-dot ${complete ? "complete" : failed ? "failed" : "running"}`}>{complete ? <Check size={14} /> : failed ? <CircleAlert size={14} /> : <Loader2 className="spin" size={14} />}</span><div><strong>{name || "Selected agent"}</strong><small>{complete ? "Returned an answer" : entry.error || (failed ? entry.status === "timeout" ? "Took too long" : "Couldn’t finish" : "Testing…")}</small></div><b>{entry.latencyMs ? `${entry.latencyMs}ms` : statusLabel(entry.status)}</b></div>; }
 function Reason({ title, detail }: { title: string; detail: string }) { return <div className="ad-reason"><Check size={19} /><span><strong>{title}</strong><small>{detail}</small></span></div>; }
 function AgentRow({ result, name }: { result: ComparedAudition; name: string }) { return <div className="ad-agent-row"><span><strong>{name}</strong><small>{result.comparison.label}</small></span><small>{statusLabel(result.status)}</small></div>; }
 function EmptyResult({ error }: { error: string | null }) { return <div className="ad-empty-result"><CircleAlert size={22} /><h2>We couldn’t compare an answer yet.</h2><p>{error || "Try the task again when live agent responses are available."}</p></div>; }

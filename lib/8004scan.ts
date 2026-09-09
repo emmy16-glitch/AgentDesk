@@ -104,6 +104,7 @@ async function requestScan<T>(baseUrl: string, path: string): Promise<{ response
   const response = await fetch(`${baseUrl}${path}`, {
     headers: headers(),
     next: { revalidate: 300 },
+    signal: AbortSignal.timeout(8_000),
   });
 
   let body: ScanResponse<T>;
@@ -237,6 +238,30 @@ export async function searchBscAgents(
   return result.body.data
     .map((agent) => normalizeAgent(agent, checkedAt, result.apiBase))
     .filter((agent) => agent.categories.includes(category));
+}
+
+/**
+ * Searches indexed ERC-8004 metadata for one task-aware query. The returned
+ * records are registry-listed only; identity and endpoint qualification remain
+ * separate phases in the discovery pipeline.
+ */
+export async function searchBscAgentsByQuery(queryText: string, limit = 16): Promise<{
+  agents: DiscoveredAgent[];
+  sourceApi: string;
+}> {
+  const query = queryText.trim();
+  if (!query) return { agents: [], sourceApi: CURRENT_SCAN_BASE_URL };
+  const safeLimit = Math.min(Math.max(limit, 1), 30);
+  const encoded = encodeURIComponent(query);
+  const result = await scanFetch<ScanAgent[]>(
+    `/agents/search/semantic?q=${encoded}&chainId=${BSC_MAINNET_CHAIN_ID}&limit=${safeLimit}`,
+    `/agents/search?q=${encoded}&chainId=${BSC_MAINNET_CHAIN_ID}&limit=${safeLimit}`,
+  );
+  const checkedAt = new Date().toISOString();
+  return {
+    agents: result.body.data.map((agent) => normalizeAgent(agent, checkedAt, result.apiBase)),
+    sourceApi: result.apiBase,
+  };
 }
 
 export async function discoverAcrossRequiredCategories(limitPerCategory = 5): Promise<{
