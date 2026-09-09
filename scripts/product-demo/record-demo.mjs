@@ -169,6 +169,21 @@ async function getBox(page, selector) {
 const centerX = (box) => Math.round(box.x + box.width / 2);
 const centerY = (box) => Math.round(box.y + box.height / 2);
 
+// Calmly bring an element into the viewport (some stages are taller than
+// 1080px). Smooth scroll so the motion stays deliberate on camera.
+async function ensureVisible(page, selector) {
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 110;
+    if (rect.top < margin || rect.bottom > window.innerHeight - margin) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, selector);
+  await sleep(750);
+}
+
 async function settlePage(page) {
   try { await page.waitForLoadState("networkidle", { timeout: 15_000 }); } catch { /* keep going */ }
   try { await page.evaluate(() => document.fonts?.ready); } catch { /* keep going */ }
@@ -248,6 +263,7 @@ async function run() {
   recordEvent("prompt_typed");
   await sleep(900);
 
+  await ensureVisible(page, ".ad-ask-cta");
   const ctaBox = await getBox(page, ".ad-ask-cta");
   await smoothMoveTo(page, centerX(ctaBox), centerY(ctaBox), 650);
   await sleep(500);
@@ -260,6 +276,38 @@ async function run() {
   recordEvent("details_visible", { box: await getBox(page, ".ad-understood") });
   await sleep(3100);
 
+  // The app heard "low-risk" only as free text (its parser matches "low risk"
+  // with a space) and defaults to Moderate. The Details screen exists to let
+  // a human confirm or complete what it understood — pick "Low" honestly.
+  const activeRisk = await page.evaluate(
+    () => document.querySelector(".ad-details .ad-risk-field [role='radio'][aria-checked='true']")?.textContent ?? "",
+  );
+  if (!/low/i.test(activeRisk)) {
+    const lowBox = await page.evaluate(() => {
+      const el = [...document.querySelectorAll(".ad-details .ad-risk-field [role='radio']")].find((button) => /low/i.test(button.textContent));
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
+    });
+    if (lowBox) {
+      await ensureVisible(page, ".ad-risk-field");
+      const lowBoxNow = await page.evaluate(() => {
+        const el = [...document.querySelectorAll(".ad-details .ad-risk-field [role='radio']")].find((button) => /low/i.test(button.textContent));
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
+      });
+      if (lowBoxNow) {
+        await smoothMoveTo(page, centerX(lowBoxNow), centerY(lowBoxNow), 550);
+        await sleep(400);
+        recordEvent("risk_low_selected", { box: lowBoxNow });
+        await calmClick(page);
+        await sleep(600);
+      }
+    }
+  }
+
+  await ensureVisible(page, ".ad-details .ad-primary");
   const liveBox = await getBox(page, ".ad-details .ad-primary");
   await smoothMoveTo(page, centerX(liveBox), centerY(liveBox), 600);
   await sleep(550);
@@ -286,10 +334,12 @@ async function run() {
   if (!flowFailed) {
     /* --- Stage 4 · Best match --------------------------------------- */
     await settlePage(page);
+    await ensureVisible(page, ".ad-agent-answer");
     const answerBox = (await getBox(page, ".ad-agent-answer")) || (await getBox(page, ".ad-match-layout"));
     recordEvent("match_visible", { box: answerBox });
     await sleep(5200); // deliberate pause on the agent's result
 
+    await ensureVisible(page, ".ad-screen-actions .ad-primary");
     const primaryLabel = ((await page.textContent(".ad-screen-actions .ad-primary")) || "").trim();
     const primaryBox = await getBox(page, ".ad-screen-actions .ad-primary");
     await smoothMoveTo(page, centerX(primaryBox), centerY(primaryBox), 700);
@@ -301,9 +351,11 @@ async function run() {
     if (/check/i.test(primaryLabel)) {
       await waitForSelector(page, ".ad-check", { timeout: 20_000, label: "Check stage" });
       await settlePage(page);
+      await ensureVisible(page, ".ad-verification");
       recordEvent("check_visible", { box: await getBox(page, ".ad-verification") });
       await sleep(4600); // let the verification evidence read
 
+      await ensureVisible(page, ".ad-screen-actions .ad-primary");
       const hireBox = await getBox(page, ".ad-screen-actions .ad-primary");
       await smoothMoveTo(page, centerX(hireBox), centerY(hireBox), 650);
       await sleep(500);
@@ -314,10 +366,12 @@ async function run() {
     /* --- Stage 6 · Hire ---------------------------------------------- */
     await waitForSelector(page, ".ad-hire", { timeout: 20_000, label: "Hire stage" });
     await settlePage(page);
+    await ensureVisible(page, ".ad-hire-action");
     recordEvent("hire_visible", { box: await getBox(page, ".ad-hire-layout") });
     await sleep(4200);
 
     /* --- Return to the brand ------------------------------------------ */
+    await ensureVisible(page, ".ad-brand");
     const brandBox = await getBox(page, ".ad-brand");
     await smoothMoveTo(page, centerX(brandBox), centerY(brandBox), 900);
     await sleep(650);
