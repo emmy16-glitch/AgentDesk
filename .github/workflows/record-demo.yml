@@ -1,0 +1,182 @@
+name: Record AgentDesk demo
+
+on:
+  push:
+    branches:
+      - demo-recording
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Record live AgentDesk flow
+        env:
+          DEMO_URL: https://agentdesk-bnb-eight.vercel.app/
+        run: |
+          mkdir -p demo-artifacts
+          cat > /tmp/record-demo.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const outDir = 'demo-artifacts';
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            viewport: { width: 1440, height: 900 },
+            recordVideo: { dir: outDir, size: { width: 1440, height: 900 } },
+          });
+          const page = await context.newPage();
+          const pause = (ms) => page.waitForTimeout(ms);
+          const shot = async (name) => {
+            try { await page.screenshot({ path: `${outDir}/${name}.png`, fullPage: false }); } catch {}
+          };
+          const clickByText = async (texts, timeout = 10000) => {
+            for (const text of texts) {
+              const candidates = [
+                page.getByRole('button', { name: new RegExp(text, 'i') }),
+                page.getByRole('link', { name: new RegExp(text, 'i') }),
+                page.getByText(new RegExp(text, 'i')).first(),
+              ];
+              for (const locator of candidates) {
+                try {
+                  if (await locator.isVisible({ timeout: 1200 })) {
+                    await locator.click({ timeout });
+                    return true;
+                  }
+                } catch {}
+              }
+            }
+            return false;
+          };
+
+          let outcome = 'unknown';
+          try {
+            await page.goto(process.env.DEMO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await pause(3500);
+            await shot('01-home');
+
+            const inputCandidates = [
+              page.getByRole('textbox').first(),
+              page.locator('textarea').first(),
+              page.locator('input[type="text"]').first(),
+            ];
+            let input = null;
+            for (const candidate of inputCandidates) {
+              try {
+                if (await candidate.isVisible({ timeout: 1200 })) { input = candidate; break; }
+              } catch {}
+            }
+            if (!input) throw new Error('Could not find task input');
+
+            await input.click();
+            await input.fill('Find a low-risk yield option for 500 USDC');
+            await pause(1400);
+            await shot('02-task-entered');
+
+            if (!await clickByText(['Find & test agents', 'Find and test agents', 'Continue', 'Next'])) {
+              await input.press('Enter').catch(() => {});
+            }
+            await pause(2500);
+            await shot('03-details');
+
+            await clickByText(['Start test', 'Test agents', 'Find & test agents', 'Continue', 'Run test', 'Next']);
+            await pause(1800);
+            await shot('04-test-started');
+
+            const resultSignals = [
+              /Best Match/i,
+              /BEST LIVE RESULT/i,
+              /LIVE CAPABILITY MATCH/i,
+              /Task completed/i,
+              /Capability confirmed/i,
+              /couldn't get enough live evidence/i,
+              /No compatible/i,
+              /Live audition failed/i,
+            ];
+
+            let detected = false;
+            for (let i = 0; i < 36; i++) {
+              for (const re of resultSignals) {
+                try {
+                  if (await page.getByText(re).first().isVisible({ timeout: 250 })) {
+                    detected = true;
+                    break;
+                  }
+                } catch {}
+              }
+              if (detected) break;
+              await pause(2500);
+            }
+
+            await pause(3000);
+            await shot('05-result');
+
+            const bodyText = await page.locator('body').innerText().catch(() => '');
+            if (/BEST LIVE RESULT|Task completed/i.test(bodyText)) outcome = 'task-result';
+            else if (/LIVE CAPABILITY MATCH|Capability confirmed/i.test(bodyText)) outcome = 'capability-offer';
+            else if (/couldn't get enough live evidence|No compatible|Live audition failed|Unavailable/i.test(bodyText)) outcome = 'live-failure';
+            else outcome = 'result-state-unclear';
+
+            if (outcome === 'task-result') {
+              await clickByText(['Check answer', 'Check Answer', 'Check']);
+              await pause(3500);
+              await shot('06-check');
+              await clickByText(['Hire', 'Continue to Hire', 'Continue']);
+              await pause(3000);
+              await shot('07-hire');
+            } else if (outcome === 'capability-offer') {
+              await clickByText(['Hire', 'Continue to Hire', 'Continue']);
+              await pause(3000);
+              await shot('06-hire');
+            }
+
+            fs.writeFileSync(`${outDir}/outcome.txt`, `${outcome}\n`);
+            fs.writeFileSync(`${outDir}/page.txt`, bodyText.slice(0, 25000));
+          } catch (error) {
+            outcome = 'recorder-error';
+            fs.writeFileSync(`${outDir}/outcome.txt`, `${outcome}\n${error?.stack || error}\n`);
+            await shot('error');
+            throw error;
+          } finally {
+            await context.close();
+            await browser.close();
+          }
+          EOF
+          node /tmp/record-demo.mjs
+
+      - name: Convert recording to MP4
+        if: always()
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          VIDEO=$(find demo-artifacts -maxdepth 1 -type f -name '*.webm' | head -n 1 || true)
+          if [ -n "$VIDEO" ]; then
+            ffmpeg -y -i "$VIDEO" -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -movflags +faststart demo-artifacts/agentdesk-demo.mp4
+          fi
+          ls -lah demo-artifacts
+
+      - name: Upload demo artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentdesk-demo-recording
+          path: demo-artifacts/
+          if-no-files-found: error
+          retention-days: 7
