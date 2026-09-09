@@ -38,23 +38,23 @@ function nextQuestionFor(input: BrainAnalysisInput): string | null {
   if (!unresolved) return null;
 
   if (unresolved.id === "machine-readable-claims") {
-    return "Can the agent return the same proposal with the requested AgentDesk JSON block so the numerical claims can be tested deterministically?";
+    return "Can the agent return the same proposal with clearly structured values so AgentDesk can check the numerical claims?";
   }
   if (input.task.category === "Yield Optimisation") {
-    return "Can the agent provide a machine-readable protocol rate source, pool address and timestamp for the APY claim?";
+    return "Can the agent provide the rate source, pool address and timestamp behind the yield estimate?";
   }
   if (input.task.category === "Grid Trading") {
-    return "Can the agent expose lowerPrice, upperPrice, gridCount and feeTier as machine-readable fields?";
+    return "Can the agent provide its lower price, upper price, number of grid levels and fee tier as clear values?";
   }
   if (input.task.category === "Rebalancing") {
-    return "Can the agent expose targetAllocations as token-to-percentage values and identify the actual wallet when live holdings are meant to be checked?";
+    return "Can the agent provide the target allocation percentages and identify the wallet if live holdings are meant to be checked?";
   }
-  return "Can the agent expose the specific health metric and its source in machine-readable form?";
+  return "Can the agent provide the specific health metric and the source used to calculate it?";
 }
 
 export function buildEvidenceEngineAnalysis(
   input: BrainAnalysisInput,
-  fallbackReason?: string,
+  _internalFallbackReason?: string,
 ): BrainAnalysis {
   const verifiedFacts = input.verification.checks
     .filter((check) => check.status === "verified")
@@ -71,28 +71,27 @@ export function buildEvidenceEngineAnalysis(
   const decision = decisionFor(input);
 
   const headline = decision === "CONFLICT"
-    ? "Live evidence conflicts with at least one agent claim."
+    ? "Something in the agent's answer conflicts with what AgentDesk checked."
     : decision === "LEADING EVIDENCE"
-      ? "The independently reproducible checks support the observable parts of this audition."
+      ? "The parts AgentDesk could check support this answer."
       : decision === "MIXED"
-        ? "Some claims are supported by live evidence while important claims remain unresolved."
-        : "There is not enough independently reproducible evidence to upgrade this audition beyond its raw response.";
+        ? "Some parts check out, while other claims still need proof."
+        : "There is not enough information to confidently support this answer yet.";
 
-  const summary = `${input.task.category}: AgentDesk reproduced ${input.verification.depth.verifiedCount} supported check${input.verification.depth.verifiedCount === 1 ? "" : "s"}, found ${input.verification.depth.conflictCount} conflict${input.verification.depth.conflictCount === 1 ? "" : "s"}, and left ${input.verification.depth.unresolvedCount} claim${input.verification.depth.unresolvedCount === 1 ? "" : "s"} unresolved. This analysis explains the evidence; it does not create new proof.`;
+  const summary = `AgentDesk checked the available ${input.task.category.toLowerCase()} evidence and found ${input.verification.depth.verifiedCount} supported item${input.verification.depth.verifiedCount === 1 ? "" : "s"}, ${input.verification.depth.conflictCount} conflict${input.verification.depth.conflictCount === 1 ? "" : "s"}, and ${input.verification.depth.unresolvedCount} unresolved claim${input.verification.depth.unresolvedCount === 1 ? "" : "s"}.`;
 
   return {
     provider: "agentdesk-evidence-engine",
-    providerLabel: "AgentDesk evidence engine",
+    providerLabel: "AgentDesk Brain",
     decision,
     headline,
     summary,
     verifiedFacts: verifiedFacts.slice(0, 6),
     unresolvedClaims: unresolvedClaims.slice(0, 6),
     conflicts: conflicts.slice(0, 6),
-    watchouts: [...categoryWatchouts(input), ...errors.map((error) => `Verifier error: ${error}`)].slice(0, 6),
+    watchouts: [...categoryWatchouts(input), ...errors.map((error) => `Check issue: ${error}`)].slice(0, 6),
     nextQuestion: nextQuestionFor(input),
-    boundary: "This deterministic fallback only summarizes evidence already produced by AgentDesk checks. It never upgrades an unverified claim into verified evidence.",
+    boundary: "AgentDesk Brain explains what the checks support and keeps anything unconfirmed clearly unresolved.",
     generatedAt: new Date().toISOString(),
-    ...(fallbackReason ? { fallbackReason } : {}),
   };
 }
