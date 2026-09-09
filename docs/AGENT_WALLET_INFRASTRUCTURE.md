@@ -1,5 +1,8 @@
 # Agent-side wallet infrastructure
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 AgentDesk keeps the **human buyer wallet** and the **agent/provider wallet** separate.
 
 ## Human buyer
