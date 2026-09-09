@@ -48,6 +48,8 @@ const tempParent = await mkdtemp(path.join(os.tmpdir(), "agentdesk-camber-brain-
 try {
   console.log(`Checking Camber CLI at ${cli}...`);
   await run(["version"]);
+  console.log("Checking authenticated Camber account...");
+  await run(["me", "--output", "json"]);
 
   console.log(`Updating ${tag} instructions and structured-output mode...`);
   await run([
@@ -77,8 +79,11 @@ try {
   await rm(path.join(mirrorRoot, "schema"), { recursive: true, force: true });
   await cp(path.join(bundle, "schema"), path.join(mirrorRoot, "schema"), { recursive: true });
 
+  // Keep the account-side skill set deterministic: remove any stale mirror skills
+  // before copying the four source-controlled AgentDesk category skills.
   const skillTarget = path.join(mirrorRoot, ".claude", "skills");
-  await cp(path.join(bundle, "skills"), skillTarget, { recursive: true, force: true });
+  await rm(skillTarget, { recursive: true, force: true });
+  await cp(path.join(bundle, "skills"), skillTarget, { recursive: true });
 
   // Preserve Camber's generated sync metadata, but make sure instructions stay enabled.
   const syncPath = path.join(mirrorRoot, ".camber", "sync.yaml");
