@@ -10,6 +10,7 @@ function optionalLine(label: string, value?: string): string[] {
 const STRUCTURED_BOUNDARY = [
   "Where your service can return machine-readable data, end the response with one JSON object under the key \"agentdesk\".",
   "Do not invent a field just to satisfy the schema. Use null or omit it when you cannot support the value with current evidence.",
+  "Keep the prose answer concise and user-facing. Do not print raw input schemas, request-object examples, or implementation instructions in the prose; describe any missing inputs in plain language instead.",
   "The prose answer remains allowed; the JSON block exists so AgentDesk can independently compare reproducible claims against BNB state.",
   "When relevant, include protocol, price, priceAsset, riskLevel and requiresExecution under agentdesk.",
   "If this agent actually uses a named agent-side wallet provider, you may also include walletProvider, walletPolicyEnforced and humanApprovalRequired. These are provider claims, not AgentDesk verification. Null or omission is better than an invented value.",
