@@ -131,17 +131,22 @@ test("a timed-out candidate remains visible but can never outrank a completed au
   });
 
   await page.goto("/", { waitUntil: "networkidle" });
-  await expect(page.getByText("2/4 selected")).toBeVisible();
-  await page.getByRole("button", { name: "Run live auditions (2)" }).click();
+  await page.getByRole("button", { name: /Find matching agents/i }).click();
+  await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Run auditions/i }).click();
 
-  const race = page.getByLabel("Live audition race");
-  await expect(race.getByText("completed", { exact: true })).toBeVisible();
-  await expect(race.getByText("timeout", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who proved the best fit?" })).toBeVisible();
 
-  const completedCard = page.locator(".audition-result").filter({ hasText: "Returned a task-specific yield route" });
-  const timeoutCard = page.locator(".audition-result").filter({ hasText: "A2A service timed out" });
-  await expect(completedCard.getByText("BEST FIT", { exact: true })).toBeVisible();
-  await expect(timeoutCard.getByText("NOT ENOUGH EVIDENCE", { exact: true })).toBeVisible();
-  await expect(timeoutCard.getByText("No usable result", { exact: true })).toBeVisible();
-  await expect(timeoutCard.getByText(/Did not complete the live audition \(timeout\)/)).toBeVisible();
+  const best = page.locator(".clean-best-card");
+  await expect(best.getByText("BEST FIT", { exact: true })).toBeVisible();
+  await expect(best.getByText("Completed", { exact: true })).toBeVisible();
+  await expect(best.getByText("Returned a task-specific yield route", { exact: false })).toBeVisible();
+
+  const timedOut = page.locator(".clean-result-row").filter({ hasText: "Timed out" });
+  await expect(timedOut).toBeVisible();
+  await expect(timedOut.getByText("NOT ENOUGH EVIDENCE", { exact: true })).toBeVisible();
+  await expect(timedOut.getByText("Timed out", { exact: true })).toBeVisible();
+
+  await timedOut.getByRole("button").click();
+  await expect(timedOut.getByText(/A2A service timed out before returning task-specific output/i)).toBeVisible();
 });

@@ -85,13 +85,13 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
         <span><strong>{result.task.category} depth</strong><small>{categoryIntro(result.task.category)}</small></span>
       </div>
       {!verification ? <button type="button" className="category-depth-run" onClick={analyse} disabled={checking || !result.output}>
-        {checking ? <><Loader2 size={13} className="spin" /> Analysing…</> : <><BrainCircuit size={14} /> Run depth checks + Brain</>}
+        {checking ? <><Loader2 size={13} className="spin" /> Analysing…</> : <><BrainCircuit size={14} /> Verify with live checks + Brain</>}
       </button> : null}
     </div>
 
     {!verification ? <div className="category-depth-preflight">
       <SearchCheck size={15} />
-      <span>AgentDesk will independently reproduce supported BNB facts, test machine-readable claims, then ask the Brain to explain only that evidence.</span>
+      <span>AgentDesk first reproduces supported BNB facts, then the Brain explains only the evidence that was actually found.</span>
     </div> : null}
 
     {verification ? <>
@@ -143,13 +143,13 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
       </div>
 
       {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question for this agent</strong><p>{analysis.nextQuestion}</p></div> : null}
-      {analysis.fallbackReason ? <div className="brain-fallback"><CircleAlert size={13} /><span>Camber Brain was unavailable for this run, so the deterministic evidence engine was used: {analysis.fallbackReason}</span></div> : null}
+      {analysis.fallbackReason ? <div className="brain-fallback"><CircleAlert size={13} /><span>Camber Brain was unavailable for this run. AgentDesk used its deterministic evidence engine instead, so the verification result remains usable.</span></div> : null}
       <p className="brain-boundary">{analysis.boundary}</p>
       {response?.brain?.proofBoundary ? <p className="brain-boundary system">{response.brain.proofBoundary}</p> : null}
     </section> : null}
 
     {verification ? <button type="button" className="category-depth-refresh" onClick={analyse} disabled={checking}>
-      <RefreshCw size={12} className={checking ? "spin" : ""} /> {checking ? "Refreshing…" : "Refresh live depth checks"}
+      <RefreshCw size={12} className={checking ? "spin" : ""} /> {checking ? "Refreshing…" : "Refresh live checks"}
     </button> : null}
 
     {error ? <div className="hire-error" role="alert">{error}</div> : null}
