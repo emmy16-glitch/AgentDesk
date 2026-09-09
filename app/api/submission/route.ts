@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { camberBrainEnabled, getCamberBrainAgentTag } from "@/lib/brain/camber-brain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
-  const camberEnabled = process.env.CAMBER_BRAIN_ENABLED?.trim().toLowerCase() === "true";
+  const camberEnabled = camberBrainEnabled();
 
   return NextResponse.json({
     ok: true,
@@ -23,7 +24,10 @@ export async function GET() {
     },
     runtime: {
       camberBrainEnabled: camberEnabled,
-      brainMode: camberEnabled ? "camber-with-deterministic-fallback" : "deterministic-evidence-engine",
+      brainMode: camberEnabled ? "camber-remote-mcp-with-deterministic-fallback" : "deterministic-evidence-engine",
+      camberTransport: "https-remote-mcp",
+      camberAgentTag: getCamberBrainAgentTag(),
+      camberCredentialPresent: Boolean(process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim()),
     },
     openProofGates: {
       realExternalPaidErc8183Job: {
