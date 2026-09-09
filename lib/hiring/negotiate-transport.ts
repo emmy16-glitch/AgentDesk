@@ -185,6 +185,10 @@ async function resolveA2ACard(
       lastReason = error instanceof Error ? error.message : "agent-card resolution failed";
     }
   }
+
+  if (requiredSkill === "negotiate" && lastReason === "agent card does not advertise negotiate") {
+    throw new Error("This agent can be tested, but its A2A card does not advertise the signed ERC-8183 hiring capability AgentDesk needs. No funds moved.");
+  }
   throw new Error(`A2A service did not prove required ${requiredSkill} capability: ${lastReason}`);
 }
 
