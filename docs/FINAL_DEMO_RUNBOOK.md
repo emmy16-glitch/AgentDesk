@@ -1,12 +1,18 @@
 # Final Judge Demo Runbook
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
 Target length: **3–5 minutes**.
 
 The goal is to make the judge understand AgentDesk in the first 20 seconds, then prove the differentiator with the smallest number of clicks.
 
 ## 0:00–0:20 — thesis
 
-Open the deployed home page.
+Open the deployed home page:
+
+https://agentdesk-bnb-eight.vercel.app/
 
 Say:
 
@@ -14,7 +20,7 @@ Say:
 
 Point to:
 
-- **Don't trust the profile. Audition the agent.**
+- **Don't trust the listing. Test the agent.**
 - the four task families.
 
 ## 0:20–0:50 — all four categories are first-class
@@ -70,7 +76,7 @@ Say:
 
 > The Brain explains the proof. It cannot create it. If Camber is available, the Camber AgentDesk Brain explains the already-verified evidence. If not, AgentDesk falls back to a deterministic evidence engine rather than inventing an answer.
 
-If Camber is being shown separately, use `@emmanuel.Agentdesk-brain` and show its proof-boundary response, but do not imply the Camber agent is itself an ERC-8004 marketplace seller.
+If Camber is being shown separately, use the configured AgentDesk Brain and show its proof-boundary response, but do not imply the Camber agent is itself an ERC-8004 marketplace seller.
 
 ## 2:30–3:15 — reveal + hire terms
 
@@ -95,7 +101,9 @@ If you do not have a real funded job in this demo, stop before pretending one ex
 
 ## 3:15–3:50 — proof map
 
-Open `/proof`.
+Open:
+
+https://agentdesk-bnb-eight.vercel.app/proof/
 
 Walk through the evidence ladder:
 
@@ -114,7 +122,7 @@ Say:
 
 > Each later state requires its own evidence. AgentDesk never labels FUNDED as completed work and never uses a generic verified-agent badge to hide those distinctions.
 
-Open `/api/health` and `/api/readiness` only if time permits.
+Open `/api/health/` and `/api/readiness/` only if time permits.
 
 ## Optional 3:50–4:30 — real paid ERC-8183 proof
 
@@ -141,7 +149,7 @@ Live agent infrastructure can fail during judging. Never replace a failed call w
 If live discovery fails:
 - show the truthful discovery-unavailable state;
 - refresh once;
-- use the Phase 2 audit as historical live evidence if necessary.
+- use the Phase 2 audit or recorded demo as historical live evidence if necessary.
 
 If one audition times out:
 - keep it visible;
@@ -153,5 +161,5 @@ If Camber is unavailable:
 - explain that proof state comes from AgentDesk checks, not the LLM provider.
 
 If BNB RPC is degraded:
-- show `/api/readiness` returning its truthful degraded state;
+- show `/api/readiness/` returning its truthful degraded state;
 - do not describe stale data as live.
