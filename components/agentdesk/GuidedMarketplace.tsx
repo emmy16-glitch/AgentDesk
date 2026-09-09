@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleAlert, Loader2, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowLeftRight, Check, CircleAlert, Loader2, Scale, ShieldCheck, TrendingUp, WalletCards } from "lucide-react";
 import AgentDeskShell from "@/components/agentdesk/AgentDeskShell";
 import IndependentCheck from "@/components/auditions/IndependentCheck";
 import ERC8183HireFlow from "@/components/hiring/ERC8183HireFlow";
@@ -15,11 +15,11 @@ type RaceStatus = AuditionResult["status"] | "running" | "request-error";
 type RaceEntry = { tokenId: number; status: RaceStatus; latencyMs?: number | null; error?: string };
 type AuditionResponse = { ok: boolean; error?: string; result?: AuditionResult };
 
-const choices: Array<{ id: MarketplaceCategory; label: string; short: string }> = [
-  { id: "Health Factor Monitoring", label: "Protect", short: "Monitor lending risk" },
-  { id: "Yield Optimisation", label: "Earn", short: "Find yield options" },
-  { id: "Grid Trading", label: "Trade", short: "Plan a price range" },
-  { id: "Rebalancing", label: "Balance", short: "Review allocations" },
+const choices: Array<{ id: MarketplaceCategory; label: string; short: string; icon: typeof ShieldCheck }> = [
+  { id: "Health Factor Monitoring", label: "Protect", short: "Monitor lending risk", icon: ShieldCheck },
+  { id: "Yield Optimisation", label: "Earn", short: "Find yield options", icon: TrendingUp },
+  { id: "Grid Trading", label: "Trade", short: "Plan a price range", icon: ArrowLeftRight },
+  { id: "Rebalancing", label: "Balance", short: "Review allocations", icon: Scale },
 ];
 
 export default function GuidedMarketplace({ agents, discoveryLoading, discoveryError }: { agents: DiscoveredAgent[]; discoveryLoading: boolean; discoveryError: string | null }) {
@@ -92,7 +92,7 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
   return <AgentDeskShell step={stage}>
     {stage === 1 ? <form className="ad-ask ad-screen" onSubmit={beginDetails} noValidate>
       <div className="ad-hero-copy"><span className="ad-kicker"><i /> AI agents. Real work. On BNB.</span><h1>What do you want<br /><em>an agent to do?</em></h1><p>Describe your goal and AgentDesk will find, test and recommend the best BNB agent for you.</p></div>
-      <section className="ad-surface ad-ask-surface" aria-label="Describe your task"><label className="sr-only" htmlFor="agent-task">What do you want an agent to do?</label><textarea id="agent-task" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="E.g. Help me find the best yield for 500 USDC" rows={3} /><div className="ad-shortcuts" role="group" aria-label="Task shortcuts">{choices.map((choice) => <button key={choice.id} type="button" className={choice.id === category ? "active" : ""} aria-pressed={choice.id === category} onClick={() => setCategory(choice.id)}>{choice.label}</button>)}</div><button className="ad-primary ad-ask-cta" type="submit">Find the best agent <ArrowRight size={18} /></button></section>
+      <section className="ad-surface ad-ask-surface" aria-label="Describe your task"><label className="sr-only" htmlFor="agent-task">What do you want an agent to do?</label><textarea id="agent-task" value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="E.g. Help me find the best yield for 500 USDC" rows={3} /><div className="ad-shortcuts" role="group" aria-label="Choose a task mode">{choices.map((choice) => { const Icon = choice.icon; return <button key={choice.id} type="button" className={choice.id === category ? "active" : ""} aria-pressed={choice.id === category} onClick={() => setCategory(choice.id)}><Icon size={18} /><span><strong>{choice.label}</strong><small>{choice.short}</small></span></button>; })}</div><button className="ad-primary ad-ask-cta" type="submit">Find the best agent <ArrowRight size={18} /></button></section>
       {error ? <p className="ad-inline-error" role="alert">{error}</p> : null}<FeatureFooter />
     </form> : null}
 
@@ -100,9 +100,9 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
       <ScreenHeading title="Tell us a little more." description="We’ll use this to find the most relevant agents for your goal." />
       <div className="ad-task-chip"><strong>{activeChoice.label}</strong><span>{prompt}</span></div>
       <section className="ad-surface ad-details-surface"><div className="ad-fields">
-        {category === "Yield Optimisation" ? <><Field label="Asset" value={asset} setValue={setAsset} /><Field label="Amount" value={amount} setValue={setAmount} suffix="USDC" /><SelectField label="Risk preference" value={risk} setValue={setRisk} options={["low", "moderate", "high"]} /><Field label="Goal (optional)" value={prompt} setValue={setPrompt} /></> : null}
+        {category === "Yield Optimisation" ? <><Field label="Asset" value={asset} setValue={setAsset} /><Field label="Amount" value={amount} setValue={setAmount} suffix="USDC" /><RiskField value={risk} setValue={setRisk} /><Field label="Goal (optional)" value={prompt} setValue={setPrompt} /></> : null}
         {category === "Health Factor Monitoring" ? <><Field label="Wallet address" value={walletAddress} setValue={setWalletAddress} placeholder="Paste wallet address" /><Field label="Protocol (optional)" value={protocol} setValue={setProtocol} placeholder="e.g. Venus" /><Field label="What should it monitor?" value={prompt} setValue={setPrompt} wide /></> : null}
-        {category === "Grid Trading" ? <><Field label="Pair" value={pair} setValue={setPair} /><Field label="Amount" value={capital} setValue={setCapital} /><SelectField label="Risk preference" value={risk} setValue={setRisk} options={["low", "moderate", "high"]} /><Field label="Strategy constraints (optional)" value={prompt} setValue={setPrompt} /></> : null}
+        {category === "Grid Trading" ? <><Field label="Pair" value={pair} setValue={setPair} /><Field label="Amount" value={capital} setValue={setCapital} /><RiskField value={risk} setValue={setRisk} /><Field label="Strategy constraints (optional)" value={prompt} setValue={setPrompt} /></> : null}
         {category === "Rebalancing" ? <><Field label="Current allocation" value={portfolio} setValue={setPortfolio} placeholder="Describe holdings or a position" wide /><Field label="Target allocation" value={objective} setValue={setObjective} placeholder="What should improve?" wide /></> : null}
       </div><p className="ad-safety-note"><ShieldCheck size={18} /> No funds are used here. We test agents first.</p></section>
       {error ? <p className="ad-inline-error" role="alert">{error}</p> : null}<ScreenActions back={back} primary="Find agents" onPrimary={() => void beginTesting()} /> <FeatureFooter />
@@ -120,7 +120,7 @@ export default function GuidedMarketplace({ agents, discoveryLoading, discoveryE
 
 function ScreenHeading({ eyebrow, title, description, center = false }: { eyebrow?: string; title: ReactNode; description: string; center?: boolean }) { return <header className={center ? "ad-heading centered" : "ad-heading"}>{eyebrow ? <span className="ad-micro">{eyebrow}</span> : null}<h1>{title}</h1><p>{description}</p></header>; }
 function Field({ label, value, setValue, suffix, placeholder, wide = false }: { label: string; value: string; setValue: (value: string) => void; suffix?: string; placeholder?: string; wide?: boolean }) { const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`; return <label className={wide ? "ad-field wide" : "ad-field"} htmlFor={id}><span>{label}</span><div><input id={id} value={value} placeholder={placeholder} onChange={(event) => setValue(event.target.value)} />{suffix ? <small>{suffix}</small> : null}</div></label>; }
-function SelectField({ label, value, setValue, options }: { label: string; value: string; setValue: (value: string) => void; options: string[] }) { const id = `field-${label.replaceAll(" ", "-")}`; return <label className="ad-field" htmlFor={id}><span>{label}</span><div className="ad-select"><select id={id} value={value} onChange={(event) => setValue(event.target.value)}>{options.map((option) => <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</select><ChevronDown size={16} /></div></label>; }
+function RiskField({ value, setValue }: { value: string; setValue: (value: string) => void }) { return <fieldset className="ad-field ad-risk-field"><legend>Risk preference</legend><div role="radiogroup" aria-label="Risk preference">{["low", "moderate", "high"].map((option) => <button key={option} type="button" role="radio" aria-checked={value === option} className={value === option ? "active" : ""} onClick={() => setValue(option)}><span>{option[0].toUpperCase() + option.slice(1)}</span>{value === option ? <Check size={14} /> : null}</button>)}</div></fieldset>; }
 function ScreenActions({ back, primary, onPrimary }: { back: () => void; primary?: string; onPrimary?: () => void }) { return <div className="ad-screen-actions"><button type="button" className="ad-secondary" onClick={back}><ArrowLeft size={18} /> Back</button>{primary ? <button type="button" className="ad-primary" onClick={onPrimary}>{primary} <ArrowRight size={18} /></button> : null}</div>; }
 function FeatureFooter() { return <div className="ad-feature-footer" id="how-it-works"><span><b>ϟ</b><strong>Real agents</strong><small>Live on BNB Chain</small></span><span><b>⌾</b><strong>Tested for you</strong><small>We compare their answers</small></span><span><b>Ⅲ</b><strong>Clear results</strong><small>See who performed best</small></span><span><b>◯</b><strong>You stay in control</strong><small>Hire only when you’re ready</small></span></div>; }
 function RaceRow({ entry, index }: { entry: RaceEntry; index: number }) { const complete = entry.status === "completed"; const failed = entry.status !== "running" && !complete; return <div className="ad-race-row"><span className={`ad-race-dot ${complete ? "complete" : failed ? "failed" : "running"}`}>{complete ? <Check size={14} /> : failed ? <CircleAlert size={14} /> : <Loader2 className="spin" size={14} />}</span><div><strong>Agent {index + 1}</strong><small>{complete ? "Returned an answer" : failed ? "Couldn’t finish" : "Testing…"}</small></div><b>{entry.latencyMs ? `${entry.latencyMs}ms` : statusLabel(entry.status)}</b></div>; }
