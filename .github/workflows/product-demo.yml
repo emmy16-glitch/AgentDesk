@@ -1,0 +1,89 @@
+name: Product demo recording
+
+# Records a real, un-faked product demo of the deployed AgentDesk app:
+# Xvfb + Chrome app-window + OpenScreen headless capture, then OpenScreen
+# export (zooms / wallpaper / motion blur) and returns the MP4 + thumbnails
+# by committing them to the triggering branch.
+#
+# Trigger manually:
+#   gh workflow run product-demo.yml --ref <branch>
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEMO_DIR: demo
+      OPENSCREEN_VERSION: "1.11.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq || true
+          sudo apt-get install -y -qq xdotool xvfb ffmpeg x11-utils >/dev/null
+          which xdotool xvfb-run Xvfb ffmpeg
+          which google-chrome-stable || which google-chrome || which chromium-browser
+
+      - name: Fetch OpenScreen (AppImage, extracted)
+        run: |
+          curl -fL --retry 3 -o openscreen.AppImage \
+            "https://github.com/getopenscreen/openscreen/releases/download/v${OPENSCREEN_VERSION}/Openscreen-Linux-${OPENSCREEN_VERSION}.AppImage"
+          chmod +x openscreen.AppImage
+          ./openscreen.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun && echo "OpenScreen extracted OK"
+
+      - name: Install playwright-core
+        run: npm install --no-save playwright-core
+
+      - name: Start virtual display
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp > demo-xvfb.log 2>&1 &
+          sleep 3
+          DISPLAY=:99 xdpyinfo | head -3
+
+      - name: Record the demo (real app, real agents, real waits)
+        run: |
+          DISPLAY=:99 DEMO_DIR=demo OPENSCREEN_BIN=./squashfs-root/AppRun \
+            node scripts/product-demo/record-demo.mjs
+
+      - name: Inspect recording + events
+        if: always()
+        run: |
+          ls -la demo || true
+          cat demo/events.json || true
+
+      - name: Finalize OpenScreen project (look + zooms)
+        run: node scripts/product-demo/finalize-project.mjs demo/agentdesk.openscreen
+
+      - name: Export with OpenScreen
+        run: |
+          DISPLAY=:99 ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun info demo/agentdesk.openscreen --json || true
+          DISPLAY=:99 ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun export demo/agentdesk.openscreen \
+            -o demo/AgentDesk-demo.mp4 --quality good --json | tee demo/openscreen-export.log
+
+      - name: Probe + extract thumbnails
+        run: |
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=width,height,avg_frame_rate -of json demo/AgentDesk-demo.mp4 | tee demo/probe.json
+          mkdir -p demo/thumbs
+          ffmpeg -v error -i demo/AgentDesk-demo.mp4 -vf "fps=1/7,scale=640:-1" -frames:v 12 demo/thumbs/frame_%02d.jpg
+          ls -la demo/thumbs
+
+      - name: Commit demo artifacts back to this branch
+        run: |
+          test -s demo/AgentDesk-demo.mp4 || { echo "::error::Export produced no video — see openscreen-export.log"; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add demo/AgentDesk-demo.mp4 demo/events.json demo/probe.json demo/thumbs demo/openscreen-export.log demo/openscreen-record.log
+          git commit -m "chore(demo): add recorded AgentDesk product demo (video + thumbnails)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
