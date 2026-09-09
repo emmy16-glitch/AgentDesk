@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +10,9 @@ const root = process.cwd();
 const bundle = path.join(root, "camber", "agentdesk-brain");
 const tag = process.env.CAMBER_BRAIN_AGENT_TAG?.trim();
 const apiKey = process.env.CAMBER_API_KEY?.trim() || process.env.CAMBER_TOKEN?.trim();
-const cli = process.env.CAMBER_CLI_PATH?.trim() || "camber";
+const officialUserInstall = path.join(os.homedir(), ".camber", "bin", "camber");
+const cli = process.env.CAMBER_CLI_PATH?.trim()
+  || (existsSync(officialUserInstall) ? officialUserInstall : "camber");
 
 if (!tag) {
   console.error("CAMBER_BRAIN_AGENT_TAG is required, e.g. @owner.agentdesk-brain");
