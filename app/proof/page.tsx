@@ -1,10 +1,10 @@
-import Navbar from "@/components/Navbar";
+import AgentDeskShell from "@/components/agentdesk/AgentDeskShell";
 import { BSC_MAINNET_IDENTITY_REGISTRY } from "@/lib/erc8004-registry";
 
 const stages = [
   ["1", "Registry listed", "A source returned a BSC ERC-8004 identity. This is discovery evidence only."],
   ["2", "Identity + service resolved", "AgentDesk reads the on-chain identity and registration metadata. An advertised service is not yet a successful service call."],
-  ["3", "Audition completed", "The advertised service answered the exact bounded task. Raw evidence, freshness, quote and latency are preserved."],
+  ["3", "Live audition responded", "AgentDesk records whether the service returned a task result, a capability-only offer, or a failure. A capability offer is never relabelled as completed work."],
   ["4", "Independent context checked", "AgentDesk reproduces only bounded category-specific BNB facts it can actually verify. Unsupported APY, profitability or strategy claims remain unresolved."],
   ["5", "Hire terms authenticated", "ERC-8183 terms must be provider-signed, bound to the ERC-8004 agent wallet, BNB chain, canonical Commerce contract and the audition receipt."],
   ["6", "Job funded", "The buyer wallet created and funded the ERC-8183 job. FUNDED is not treated as completed work."],
@@ -16,14 +16,13 @@ export default function ProofPage() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-white">
-      <Navbar />
-      <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 lg:px-10">
+    <AgentDeskShell>
+      <main className="mx-auto w-full max-w-6xl px-5 py-12 text-white sm:px-8 lg:px-10">
         <div className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f2bd3e]">AgentDesk proof map</p>
+          <p className="ad-micro">AGENTDESK PROOF MAP</p>
           <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.045em] sm:text-5xl">Every claim has a boundary.</h1>
           <p className="mt-5 text-base leading-7 text-[#aab4bf]">
-            AgentDesk deliberately keeps discovery, reachability, audition evidence, independent BNB context, payment and completion separate. A later state is never inferred just because an earlier one succeeded.
+            AgentDesk deliberately keeps discovery, reachability, live capability, task output, independent BNB context, payment and completion separate. A later state is never inferred just because an earlier one succeeded.
           </p>
           {commit ? <p className="mt-4 font-mono text-xs text-[#74808b]">build {commit.slice(0, 12)}</p> : null}
         </div>
@@ -49,12 +48,8 @@ export default function ProofPage() {
             AgentDesk Brain receives the audition output plus AgentDesk&apos;s independent check results, then explains supported facts, unresolved claims, conflicts and watchouts. It cannot change an ERC-8004 identity state, an ERC-8183 job state, Task Fit, or an independent verification result.
           </p>
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">
-              AgentDesk Brain active
-            </span>
-            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">
-              Evidence-bound analysis
-            </span>
+            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">AgentDesk Brain active</span>
+            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">Evidence-bound analysis</span>
           </div>
           <p className="mt-4 text-xs leading-5 text-[#73849d]">
             The Brain explains only evidence AgentDesk has already collected or independently checked; it does not manufacture stronger proof.
@@ -72,6 +67,7 @@ export default function ProofPage() {
             <a className="dark-button" href="/api/readiness/" target="_blank" rel="noreferrer">Open BNB readiness JSON</a>
             <a className="dark-button" href="/api/submission/" target="_blank" rel="noreferrer">Open submission status JSON</a>
             <a className="dark-button" href={`https://bscscan.com/address/${BSC_MAINNET_IDENTITY_REGISTRY}`} target="_blank" rel="noreferrer">ERC-8004 registry on BscScan</a>
+            <a className="dark-button" href="/docs/">Back to Docs</a>
           </div>
         </section>
 
@@ -82,6 +78,6 @@ export default function ProofPage() {
           </p>
         </section>
       </main>
-    </div>
+    </AgentDeskShell>
   );
 }
