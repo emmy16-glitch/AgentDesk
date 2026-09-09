@@ -5,11 +5,24 @@ name: Product demo recording
 # export (zooms / wallpaper / motion blur) and returns the MP4 + thumbnails
 # by committing them to the triggering branch.
 #
-# Trigger manually:
-#   gh workflow run product-demo.yml --ref <branch>
+# Triggers:
+#   - manually via workflow_dispatch (when the token allows it)
+#   - automatically on pushes that touch this pipeline (the recording
+#     artifacts committed back under demo/ do NOT match `paths`, so the
+#     artifact commit cannot re-trigger the pipeline)
+#   - to re-run without changes, touch `demo-trigger.txt` and push
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/product-demo/**"
+      - ".github/workflows/record-demo.yml"
+      - "demo-trigger.txt"
+
+concurrency:
+  group: product-demo-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
