@@ -4,11 +4,29 @@ import { verifyAgainstBnbState } from "@/lib/auditions/bnb-ground-truth";
 import { analyseWithCamber, camberBrainEnabled } from "@/lib/brain/camber-brain";
 import { buildEvidenceEngineAnalysis } from "@/lib/brain/evidence-engine";
 import type { BrainAnalysisInput } from "@/lib/brain/types";
+import type { RuleCheck, RuleEvaluation } from "@/lib/guardrails/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_OUTPUT_LENGTH = 80_000;
+
+function parseRuleEvaluation(value: unknown): RuleEvaluation | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const raw = value as Record<string, unknown>;
+  if (!Array.isArray(raw.checks) || typeof raw.hardFailure !== "boolean") return undefined;
+  const checks = raw.checks.flatMap((entry): RuleCheck[] => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const check = entry as Record<string, unknown>;
+    if ((check.id !== "price" && check.id !== "protocol" && check.id !== "risk" && check.id !== "action") || (check.status !== "pass" && check.status !== "fail" && check.status !== "unknown") || typeof check.label !== "string" || typeof check.summary !== "string") return [];
+    return [{ id: check.id, status: check.status, label: check.label, summary: check.summary }];
+  });
+  if (checks.length !== raw.checks.length) return undefined;
+  const passedCount = checks.filter((check) => check.status === "pass").length;
+  const failedCount = checks.filter((check) => check.status === "fail").length;
+  const unknownCount = checks.filter((check) => check.status === "unknown").length;
+  return { status: raw.hardFailure || failedCount ? "conflict" : unknownCount ? "partial" : "fits", checks, hardFailure: raw.hardFailure, passedCount, failedCount, unknownCount };
+}
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -39,18 +57,14 @@ export async function POST(request: NextRequest) {
       task: parsed.task,
       output,
       verification,
+      ruleEvaluation: parseRuleEvaluation(object.ruleEvaluation),
     };
 
     let analysis = buildEvidenceEngineAnalysis(input);
-    let camberAttempted = false;
     if (camberBrainEnabled()) {
-      camberAttempted = true;
       try {
         analysis = await analyseWithCamber(input);
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : "Camber Brain was unavailable";
-        analysis = buildEvidenceEngineAnalysis(input, reason);
-      }
+      } catch { analysis = buildEvidenceEngineAnalysis(input); }
     }
 
     return NextResponse.json({
@@ -58,11 +72,6 @@ export async function POST(request: NextRequest) {
       tokenId: parsed.tokenId,
       verification,
       analysis,
-      brain: {
-        camberConfigured: camberBrainEnabled(),
-        camberAttempted,
-        proofBoundary: "Brain analysis explains existing evidence. It never changes an ERC-8004 identity state, an ERC-8183 job state, or an independent verification result.",
-      },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "AgentDesk Brain analysis failed";

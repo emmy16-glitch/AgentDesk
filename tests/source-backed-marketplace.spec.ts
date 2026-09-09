@@ -87,9 +87,16 @@ async function mockDiscovery(page: Page) {
 
 async function mockAuditions(page: Page) {
   await page.route("**/api/auditions", async (route) => {
-    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string } };
+    const body = route.request().postDataJSON() as { tokenId: number; task: { category: string; guardrails?: { maxPrice?: { amount: string; asset: string }; approvedProtocols?: string[]; actionPolicy?: string } } };
     expect(body.task.category).toBe("Yield Optimisation");
     expect([171927, 6443]).toContain(body.tokenId);
+    if (body.task.guardrails?.maxPrice) {
+      expect(body.task.guardrails).toMatchObject({
+        maxPrice: { amount: "0.25", asset: "$U" },
+        approvedProtocols: ["Venus"],
+        actionPolicy: "approval-required",
+      });
+    }
 
     const tokenId = body.tokenId;
     const latencyMs = tokenId === 171927 ? 840 : 1220;
@@ -187,8 +194,6 @@ async function mockBrain(page: Page) {
           boundary: "Independent checks verify only reproducible BNB facts and deterministic scenario math.",
         },
         analysis: {
-          provider: "camber",
-          providerLabel: "AgentDesk Brain · powered by Camber",
           decision: "MIXED",
           headline: "The route has live token context, but the yield claim is still unresolved.",
           summary: "AgentDesk reproduced the token identity while preserving the APY as unverified.",
@@ -197,13 +202,8 @@ async function mockBrain(page: Page) {
           conflicts: [],
           watchouts: ["Pool existence does not prove future returns."],
           nextQuestion: "Can the agent provide a machine-readable protocol rate source?",
-          boundary: "Camber explains the supplied evidence but does not create proof.",
+          boundary: "AgentDesk Brain explains the supplied evidence but does not create proof.",
           generatedAt: "2026-09-09T00:20:01.000Z",
-        },
-        brain: {
-          camberConfigured: true,
-          camberAttempted: true,
-          proofBoundary: "Brain analysis explains existing evidence and never changes proof state.",
         },
       }),
     });
@@ -296,7 +296,7 @@ test("live audition remains blind and shows one clear best result", async ({ pag
   await assertNoHorizontalOverflow(page);
 });
 
-test("verification and Camber Brain stay behind an explicit verify action", async ({ page }) => {
+test("verification and AgentDesk Brain stay behind an explicit verify action", async ({ page }) => {
   await mockDiscovery(page);
   await mockAuditions(page);
   await mockBrain(page);
@@ -309,9 +309,37 @@ test("verification and Camber Brain stay behind an explicit verify action", asyn
   await depth.getByRole("button", { name: /Verify with live checks \+ Brain/i }).click();
 
   await expect(depth.getByText("MIXED EVIDENCE", { exact: true })).toBeVisible();
-  await expect(depth.getByText("AgentDesk Brain · powered by Camber", { exact: true })).toBeVisible();
+  await expect(depth.getByText("AgentDesk’s take", { exact: true })).toBeVisible();
+  await expect(depth.getByText(/Camber/i)).toHaveCount(0);
   await expect(depth.getByText(/APY remains unverified/i).first()).toBeVisible();
   await expect(depth.getByText(/does not create proof/i).first()).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+});
+
+test("Your rules stay compact until edited and persist through the guided flow", async ({ page }) => {
+  await mockDiscovery(page);
+  await mockAuditions(page);
+  await page.goto("/", { waitUntil: "networkidle" });
+  await openYieldCandidates(page);
+
+  const rules = page.getByLabel("Your rules");
+  await expect(rules.getByText("Moderate risk · Any protocol", { exact: true })).toBeVisible();
+  await expect(rules.getByLabel("Risk preference")).toHaveCount(0);
+  await rules.getByRole("button", { name: "Edit" }).click();
+  await rules.getByRole("radio", { name: "Limit to a protocol" }).click();
+  await rules.getByLabel("Allowed protocol").fill("Venus");
+  await rules.getByLabel("Maximum hire price amount").fill("0.25");
+  await rules.getByRole("button", { name: "Done" }).click();
+  await expect(rules.getByText("Moderate risk · Max 0.25 $U", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /^Find agents/i }).click();
+  await expect(page.getByText("Using your task + rules", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /See results/i }).click();
+  await expect(page.getByText("Fits what we could confirm", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Check answer/i }).first().click();
+  await expect(page.getByText("Your rules", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Continue to hire/i }).click();
+  await expect(page.getByText("These are the rules this agent was tested against.", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 });
 

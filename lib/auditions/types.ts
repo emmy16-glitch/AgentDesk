@@ -1,4 +1,5 @@
 import type { MarketplaceCategory } from "@/lib/8004scan";
+import type { TaskGuardrails } from "@/lib/guardrails/types";
 
 export type AuditionStatus = "completed" | "unsupported" | "timeout" | "error";
 export type TaskFitLabel = "BEST FIT" | "STRONG FIT" | "PARTIAL FIT" | "NOT ENOUGH EVIDENCE";
@@ -6,6 +7,7 @@ export type TaskFitLabel = "BEST FIT" | "STRONG FIT" | "PARTIAL FIT" | "NOT ENOU
 interface BaseAuditionTask {
   category: MarketplaceCategory;
   instructions?: string;
+  guardrails?: TaskGuardrails;
 }
 
 export interface HealthFactorAuditionTask extends BaseAuditionTask {

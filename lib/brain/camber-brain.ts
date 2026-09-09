@@ -56,6 +56,8 @@ function promptFor(input: BrainAnalysisInput): string {
     tokenId: input.tokenId,
     category: input.task.category,
     task: input.task,
+    guardrails: input.task.guardrails ?? null,
+    ruleEvaluation: input.ruleEvaluation ?? null,
     agentOutput: input.output.slice(0, 10_000),
     verification: {
       status: input.verification.status,
@@ -112,8 +114,6 @@ export async function analyseWithCamber(input: BrainAnalysisInput): Promise<Brai
   if (!headline || !summary) throw new Error("Camber Brain response was missing required analysis fields");
 
   return {
-    provider: "camber",
-    providerLabel: "AgentDesk Brain · powered by Camber",
     decision,
     headline,
     summary,

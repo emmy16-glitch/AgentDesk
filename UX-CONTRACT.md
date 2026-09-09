@@ -57,6 +57,12 @@ Each family has its own required input contract. AgentDesk selects up to four so
 
 The shared `AgentDeskShell` keeps navigation, the single supplied environmental background, and progress state stable across the entire flow. Wallet connection is not available in navigation or before the Hire step.
 
+## Task rules
+
+Screen 2 keeps **Your rules** collapsed by default so task details remain primary. Rules are task-specific constraints, not a profile or long-term preference system: risk tolerance, optional maximum hire price, optional protocol restriction, action permission, and the public-wallet data boundary where relevant.
+
+The same optional `guardrails` object travels with the task through every candidate audition. A changed rule invalidates prior race/comparison state. Rule evaluation distinguishes `pass`, `fail`, and `unknown`; unknown never becomes a pass. Known price, protocol, or unauthorized-action conflicts are hard failures and cannot receive Best Match. The same task object, including rules, is hashed into the audition receipt and carried into the signed ERC-8183 job description.
+
 ## Audition result contract
 
 Every audition result exposes enough information to distinguish evidence from interpretation:
@@ -95,12 +101,14 @@ There is no unexplained global trust score.
 
 For candidates auditioned on the same task, comparison order is explainable and deterministic. It considers, in order:
 
-1. audition completion state;
-2. usable task-specific output;
-3. machine-readable quote availability;
-4. preserved evidence count;
-5. measured response latency;
-6. a deterministic token-ID tie break.
+1. hard user-rule conflicts;
+2. audition completion state;
+3. usable task-specific output;
+4. confirmed rule compatibility;
+5. machine-readable quote availability;
+6. preserved evidence count;
+7. measured response latency;
+8. a deterministic token-ID tie break.
 
 The UI states why each candidate ranked where it did. A relative BEST FIT label therefore means “best observable evidence in this audition set,” not “globally trustworthy” or “economically guaranteed.”
 

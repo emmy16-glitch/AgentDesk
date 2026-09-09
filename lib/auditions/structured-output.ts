@@ -29,10 +29,19 @@ export interface StructuredRebalanceClaims {
   targetAllocations: Record<string, number>;
 }
 
+export interface StructuredAgentdeskClaims {
+  protocol: string | null;
+  price: string | null;
+  priceAsset: string | null;
+  riskLevel: string | null;
+  requiresExecution: boolean | null;
+}
+
 export interface StructuredAuditionClaims {
   detected: boolean;
   category: AuditionTask["category"];
   raw: Record<string, unknown> | null;
+  agentdesk?: StructuredAgentdeskClaims;
   health?: StructuredHealthClaims;
   yield?: StructuredYieldClaims;
   grid?: StructuredGridClaims;
@@ -62,6 +71,23 @@ function stringValue(...values: unknown[]): string | null {
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return null;
+}
+
+function booleanValue(...values: unknown[]): boolean | null {
+  for (const value of values) {
+    if (typeof value === "boolean") return value;
+  }
+  return null;
+}
+
+function agentdeskClaims(claims: Record<string, unknown>): StructuredAgentdeskClaims {
+  return {
+    protocol: stringValue(claims.protocol),
+    price: stringValue(claims.price),
+    priceAsset: stringValue(claims.priceAsset, claims.price_asset),
+    riskLevel: stringValue(claims.riskLevel, claims.risk_level),
+    requiresExecution: booleanValue(claims.requiresExecution, claims.requires_execution),
+  };
 }
 
 function jsonCandidates(output: string): string[] {
@@ -127,6 +153,7 @@ export function parseStructuredAuditionClaims(output: string, category: Audition
           detected: true,
           category,
           raw: root,
+          agentdesk: agentdeskClaims(claims),
           health: {
             healthFactor: numberValue(health.healthFactor, health.health_factor),
             shortfall: numberValue(health.shortfall, health.accountShortfall, health.account_shortfall),
@@ -142,6 +169,7 @@ export function parseStructuredAuditionClaims(output: string, category: Audition
           detected: true,
           category,
           raw: root,
+          agentdesk: agentdeskClaims(claims),
           yield: {
             protocol: stringValue(yieldClaims.protocol),
             venue: stringValue(yieldClaims.venue, yieldClaims.exchange),
@@ -158,6 +186,7 @@ export function parseStructuredAuditionClaims(output: string, category: Audition
           detected: true,
           category,
           raw: root,
+          agentdesk: agentdeskClaims(claims),
           grid: {
             venue: stringValue(grid.venue, grid.exchange, grid.protocol),
             pair: stringValue(grid.pair, grid.market),
@@ -174,6 +203,7 @@ export function parseStructuredAuditionClaims(output: string, category: Audition
         detected: true,
         category,
         raw: root,
+        agentdesk: agentdeskClaims(claims),
         rebalance: {
           protocol: stringValue(rebalance.protocol, rebalance.venue),
           targetAllocations: parseAllocations(

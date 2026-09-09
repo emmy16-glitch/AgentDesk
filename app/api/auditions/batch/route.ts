@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       }]
     : []);
 
-  const compared = compareAuditions(results);
+  const compared = compareAuditions(results, parsed.task.guardrails);
 
   return NextResponse.json({
     ok: true,
@@ -45,8 +45,10 @@ export async function POST(request: NextRequest) {
     results: compared,
     failures,
     rankingMethod: [
+      "hard rule conflicts",
       "audition completion status",
       "usable task-specific output",
+      "confirmed rule compatibility",
       "machine-readable quote availability",
       "preserved evidence count",
       "measured latency",

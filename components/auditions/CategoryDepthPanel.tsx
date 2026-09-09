@@ -21,11 +21,6 @@ interface BrainResponse {
   error?: string;
   verification?: IndependentVerification;
   analysis?: BrainAnalysis;
-  brain?: {
-    camberConfigured: boolean;
-    camberAttempted: boolean;
-    proofBoundary: string;
-  };
 }
 
 function sourceLink(source: string): string | null {
@@ -61,6 +56,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
           tokenId: result.candidate.tokenId,
           task: result.task,
           output: result.output,
+          ruleEvaluation: result.ruleEvaluation,
         }),
       });
       const body = await request.json() as BrainResponse;
@@ -129,7 +125,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
 
     {analysis ? <section className={`brain-analysis ${decisionClass(analysis.decision)}`} aria-label="AgentDesk Brain analysis">
       <div className="brain-analysis-heading">
-        <div><BrainCircuit size={17} /><span><strong>{analysis.providerLabel}</strong><small>{analysis.decision}</small></span></div>
+        <div><BrainCircuit size={17} /><span><strong>AgentDesk&apos;s take</strong><small>{analysis.decision}</small></span></div>
         <span className="brain-proof-label">EXPLAINS PROOF · DOES NOT CREATE IT</span>
       </div>
       <h5>{analysis.headline}</h5>
@@ -143,9 +139,7 @@ export default function CategoryDepthPanel({ result }: { result: ComparedAuditio
       </div>
 
       {analysis.nextQuestion ? <div className="brain-next-question"><strong>Best next question for this agent</strong><p>{analysis.nextQuestion}</p></div> : null}
-      {analysis.fallbackReason ? <div className="brain-fallback"><CircleAlert size={13} /><span>Camber Brain was unavailable for this run. AgentDesk used its deterministic evidence engine instead, so the verification result remains usable.</span></div> : null}
       <p className="brain-boundary">{analysis.boundary}</p>
-      {response?.brain?.proofBoundary ? <p className="brain-boundary system">{response.brain.proofBoundary}</p> : null}
     </section> : null}
 
     {verification ? <button type="button" className="category-depth-refresh" onClick={analyse} disabled={checking}>

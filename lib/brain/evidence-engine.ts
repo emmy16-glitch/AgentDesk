@@ -52,10 +52,7 @@ function nextQuestionFor(input: BrainAnalysisInput): string | null {
   return "Can the agent expose the specific health metric and its source in machine-readable form?";
 }
 
-export function buildEvidenceEngineAnalysis(
-  input: BrainAnalysisInput,
-  fallbackReason?: string,
-): BrainAnalysis {
+export function buildEvidenceEngineAnalysis(input: BrainAnalysisInput): BrainAnalysis {
   const verifiedFacts = input.verification.checks
     .filter((check) => check.status === "verified")
     .map((check) => check.summary);
@@ -78,11 +75,12 @@ export function buildEvidenceEngineAnalysis(
         ? "Some claims are supported by live evidence while important claims remain unresolved."
         : "There is not enough independently reproducible evidence to upgrade this audition beyond its raw response.";
 
-  const summary = `${input.task.category}: AgentDesk reproduced ${input.verification.depth.verifiedCount} supported check${input.verification.depth.verifiedCount === 1 ? "" : "s"}, found ${input.verification.depth.conflictCount} conflict${input.verification.depth.conflictCount === 1 ? "" : "s"}, and left ${input.verification.depth.unresolvedCount} claim${input.verification.depth.unresolvedCount === 1 ? "" : "s"} unresolved. This analysis explains the evidence; it does not create new proof.`;
+  const ruleSummary = input.ruleEvaluation
+    ? ` Your rules: ${input.ruleEvaluation.passedCount} confirmed, ${input.ruleEvaluation.unknownCount} unconfirmed, ${input.ruleEvaluation.failedCount} conflicting.`
+    : "";
+  const summary = `${input.task.category}: AgentDesk reproduced ${input.verification.depth.verifiedCount} supported check${input.verification.depth.verifiedCount === 1 ? "" : "s"}, found ${input.verification.depth.conflictCount} conflict${input.verification.depth.conflictCount === 1 ? "" : "s"}, and left ${input.verification.depth.unresolvedCount} claim${input.verification.depth.unresolvedCount === 1 ? "" : "s"} unresolved.${ruleSummary} This analysis explains the evidence; it does not create new proof.`;
 
   return {
-    provider: "agentdesk-evidence-engine",
-    providerLabel: "AgentDesk evidence engine",
     decision,
     headline,
     summary,
@@ -91,8 +89,7 @@ export function buildEvidenceEngineAnalysis(
     conflicts: conflicts.slice(0, 6),
     watchouts: [...categoryWatchouts(input), ...errors.map((error) => `Verifier error: ${error}`)].slice(0, 6),
     nextQuestion: nextQuestionFor(input),
-    boundary: "This deterministic fallback only summarizes evidence already produced by AgentDesk checks. It never upgrades an unverified claim into verified evidence.",
+    boundary: "AgentDesk Brain summarizes evidence already produced by AgentDesk checks. It never upgrades an unverified claim into verified evidence.",
     generatedAt: new Date().toISOString(),
-    ...(fallbackReason ? { fallbackReason } : {}),
   };
 }

@@ -7,6 +7,7 @@ import { encodeFunctionData, formatUnits, getAddress, isAddress, type Address, t
 import JobEvidencePanel from "@/components/hiring/JobEvidencePanel";
 import type { ComparedAudition } from "@/lib/auditions/compare";
 import { buildAuditionReceipt } from "@/lib/auditions/receipt";
+import { evaluatePriceLimit } from "@/lib/guardrails/evaluate";
 import {
   EMPTY_BYTES,
   ERC8183_DEPLOYMENTS,
@@ -73,6 +74,10 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
     : null;
 
   async function negotiate() {
+    if (result.ruleEvaluation.hardFailure) {
+      setError("This agent doesn’t meet one of your rules. Choose another agent or change your rules before hiring.");
+      return;
+    }
     setNegotiating(true);
     setError(null);
     setQuote(null);
@@ -186,6 +191,11 @@ export default function ERC8183HireFlow({ result, agentName }: Props) {
       const deployment = ERC8183_DEPLOYMENTS[quote.chainId];
       const buyer = walletClient.account.address;
       const budget = BigInt(quote.priceBaseUnits);
+      const finalPriceRule = evaluatePriceLimit(
+        { amount: formatUnits(budget, 18), asset: "$U" },
+        result.task.guardrails?.maxPrice,
+      );
+      if (finalPriceRule?.status === "fail") throw new Error("This price is above the limit you set.");
 
       const livePaymentToken = await publicClient.readContract({
         address: deployment.commerce,

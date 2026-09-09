@@ -25,6 +25,8 @@ Describe a task
 → inspect submission/completion evidence
 ```
 
+Task-specific **Your rules** can carry a risk tolerance, optional price or protocol limits and action permission through the same audition, comparison, check and hiring commitment. They are not long-term profiling: the complete task object, including optional rules, is committed into the audition receipt before ERC-8183 negotiation.
+
 ## Main differentiator
 
 Most marketplaces ask users to trust a profile, star count, or static capability claim.
