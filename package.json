@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
+    "test:production-smoke": "node scripts/production-smoke.mjs",
     "contract:compile": "node scripts/compile-contract.mjs",
     "contract:deploy:testnet": "node scripts/deploy-marketplace.mjs"
   },
