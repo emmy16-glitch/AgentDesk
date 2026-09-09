@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CubeMark } from "@/components/Hero";
 
@@ -18,6 +19,9 @@ function AgentDeskNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+  const marketplaceActive = pathname === "/";
+  const docsActive = pathname.startsWith("/docs") || pathname.startsWith("/proof");
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -63,10 +67,16 @@ function AgentDeskNavbar() {
   return <header className="ad-navbar">
     <a className="ad-brand" href="/" aria-label="AgentDesk home"><CubeMark /><span>Agent<span>Desk</span></span></a>
     <nav className="ad-nav-links" aria-label="Primary navigation">
-      <a className="active" href="/">Marketplace</a><a href="#how-it-works">How it works</a><a href="https://github.com/emmy16-glitch/AgentDesk#readme" target="_blank" rel="noreferrer">For builders</a><a href="/proof/">Docs</a>
+      <a className={marketplaceActive ? "active" : ""} href="/" aria-current={marketplaceActive ? "page" : undefined}>Marketplace</a>
+      <a className={docsActive ? "active" : ""} href="/docs/" aria-current={docsActive ? "page" : undefined}>Docs</a>
     </nav>
-    <div className="ad-nav-utility"><button ref={menuButtonRef} type="button" className="ad-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="agentdesk-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button></div>
-    {menuOpen ? <nav ref={mobileMenuRef} id="agentdesk-mobile-menu" className="ad-mobile-menu" aria-label="Mobile navigation"><a href="/" onClick={() => setMenuOpen(false)}>Marketplace</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="https://github.com/emmy16-glitch/AgentDesk#readme" target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>For builders</a><a href="/proof/" onClick={() => setMenuOpen(false)}>Docs</a></nav> : null}
+    <div className="ad-nav-utility">
+      <button ref={menuButtonRef} type="button" className="ad-menu-button" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="agentdesk-mobile-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
+    </div>
+    {menuOpen ? <nav ref={mobileMenuRef} id="agentdesk-mobile-menu" className="ad-mobile-menu" aria-label="Mobile navigation">
+      <a className={marketplaceActive ? "active" : ""} href="/" aria-current={marketplaceActive ? "page" : undefined} onClick={() => setMenuOpen(false)}>Marketplace</a>
+      <a className={docsActive ? "active" : ""} href="/docs/" aria-current={docsActive ? "page" : undefined} onClick={() => setMenuOpen(false)}>Docs</a>
+    </nav> : null}
   </header>;
 }
 
