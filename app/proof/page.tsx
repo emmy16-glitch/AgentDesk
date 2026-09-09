@@ -5,14 +5,18 @@ const stages = [
   ["1", "Registry listed", "A source returned a BSC ERC-8004 identity. This is discovery evidence only."],
   ["2", "Identity + service resolved", "AgentDesk reads the on-chain identity and registration metadata. An advertised service is not yet a successful service call."],
   ["3", "Audition completed", "The advertised service answered the exact bounded task. Raw evidence, freshness, quote and latency are preserved."],
-  ["4", "Hire terms authenticated", "ERC-8183 terms must be provider-signed, bound to the ERC-8004 agent wallet, BNB chain, canonical Commerce contract and the audition receipt."],
-  ["5", "Job funded", "The buyer wallet created and funded the ERC-8183 job. FUNDED is not treated as completed work."],
-  ["6", "Result submitted", "The provider submitted a deliverable commitment. AgentDesk attempts to retrieve the manifest and reproduce the on-chain hash."],
-  ["7", "Completed", "Only the exact ERC-8183 completion state plus verified delivery evidence can unlock AgentDesk's portable completion reputation signal."],
+  ["4", "Independent context checked", "AgentDesk reproduces only bounded category-specific BNB facts it can actually verify. Unsupported APY, profitability or strategy claims remain unresolved."],
+  ["5", "Hire terms authenticated", "ERC-8183 terms must be provider-signed, bound to the ERC-8004 agent wallet, BNB chain, canonical Commerce contract and the audition receipt."],
+  ["6", "Job funded", "The buyer wallet created and funded the ERC-8183 job. FUNDED is not treated as completed work."],
+  ["7", "Result submitted", "The provider submitted a deliverable commitment. AgentDesk attempts to retrieve the manifest and reproduce the on-chain hash."],
+  ["8", "Completed", "Only the exact ERC-8183 completion state plus verified delivery evidence can unlock AgentDesk's portable completion reputation signal."],
 ] as const;
 
 export default function ProofPage() {
   const commit = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
+  const camberEnabled = process.env.CAMBER_BRAIN_ENABLED?.toLowerCase() === "true";
+  const brainTag = process.env.CAMBER_BRAIN_AGENT_TAG || null;
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-white">
       <Navbar />
@@ -21,7 +25,7 @@ export default function ProofPage() {
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f2bd3e]">AgentDesk proof map</p>
           <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.045em] sm:text-5xl">Every claim has a boundary.</h1>
           <p className="mt-5 text-base leading-7 text-[#aab4bf]">
-            AgentDesk deliberately keeps discovery, reachability, audition evidence, payment and completion separate. A later stage can only be shown when the earlier evidence actually exists.
+            AgentDesk deliberately keeps discovery, reachability, audition evidence, independent BNB context, payment and completion separate. A later state is never inferred just because an earlier one succeeded.
           </p>
           {commit ? <p className="mt-4 font-mono text-xs text-[#74808b]">build {commit.slice(0, 12)}</p> : null}
         </div>
@@ -40,7 +44,26 @@ export default function ProofPage() {
           ))}
         </section>
 
-        <section className="mt-10 rounded-2xl border border-[#3d3422] bg-[#151209] p-6">
+        <section className="mt-10 rounded-2xl border border-[#26364c] bg-[#0b111a] p-6" aria-label="AgentDesk Brain proof boundary">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#8eb8ff]">AgentDesk Brain</p>
+          <h2 className="mt-2 text-2xl font-bold">Explanation is not verification.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#aebbd0]">
+            The Brain receives the audition output plus AgentDesk&apos;s independent check results, then explains verified facts, unresolved claims, conflicts and watchouts. It cannot change an ERC-8004 identity state, an ERC-8183 job state, Task Fit, or an independent verification result.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 text-[#aecbff]">
+              runtime: {camberEnabled ? "Camber enabled" : "deterministic evidence engine"}
+            </span>
+            {camberEnabled && brainTag ? (
+              <span className="rounded-full border border-[#30445f] bg-[#111c2b] px-3 py-1.5 font-mono text-[#aecbff]">{brainTag}</span>
+            ) : null}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-[#73849d]">
+            When Camber is unavailable or disabled, AgentDesk falls back to deterministic evidence analysis instead of generating substitute proof.
+          </p>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#3d3422] bg-[#151209] p-6">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f2bd3e]">Runtime evidence</p>
           <h2 className="mt-2 text-2xl font-bold">Inspectable deployment checks</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#b5ad9e]">
@@ -49,6 +72,7 @@ export default function ProofPage() {
           <div className="mt-5 flex flex-wrap gap-3">
             <a className="dark-button" href="/api/health/" target="_blank" rel="noreferrer">Open liveness JSON</a>
             <a className="dark-button" href="/api/readiness/" target="_blank" rel="noreferrer">Open BNB readiness JSON</a>
+            <a className="dark-button" href="/api/submission/" target="_blank" rel="noreferrer">Open submission status JSON</a>
             <a className="dark-button" href={`https://bscscan.com/address/${BSC_MAINNET_IDENTITY_REGISTRY}`} target="_blank" rel="noreferrer">ERC-8004 registry on BscScan</a>
           </div>
         </section>
