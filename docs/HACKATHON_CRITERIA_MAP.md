@@ -1,5 +1,9 @@
 # Main-Track Criteria Map
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
 AgentDesk is built for the BNB Chain **Smart Money Era: Build the Era** main-track brief: a public BNB Agent Studio marketplace where users can discover live BSC agents across four first-class categories, understand them, and activate/hire them with minimal friction.
 
 This file maps implemented product evidence to the three published judging dimensions without inventing a score.
@@ -13,15 +17,15 @@ AgentDesk implementation:
 - task-first landing rather than protocol-first navigation;
 - four clear task families;
 - source-backed candidate discovery;
-- multi-select audition race;
-- blind comparison before identity reveal;
+- multi-agent live audition flow;
 - transparent Task Fit instead of a global trust percentage;
 - exact provider-signed ERC-8183 hire terms before wallet approval;
 - buyer-wallet create/register/budget/approve/fund flow;
 - provider notification when the advertised service supports it;
 - submitted/completed job refresh and delivery verification;
 - explicit error, timeout, unsupported and degraded states;
-- `/proof`, liveness and readiness routes for judge inspection.
+- `/proof`, liveness and readiness routes for judge inspection;
+- public production deployment at `https://agentdesk-bnb-eight.vercel.app/`.
 
 **Remaining external gate:** one real buyer-funded external ERC-8183 job must still be completed and preserved as inspectable proof. The code path exists; the repository does not fake the missing paid run.
 
