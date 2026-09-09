@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: agentdesk-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,6 +54,9 @@ jobs:
           done
           cat /tmp/agentdesk-next.log
           exit 1
+
+      - name: Production liveness and proof-boundary smoke
+        run: npm run test:production-smoke
 
       - name: Live Phase 2 audition gate
         if: github.event_name == 'pull_request' && github.head_ref == 'phase2/live-agent-auditions'
