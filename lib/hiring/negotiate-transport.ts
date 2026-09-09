@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentService } from "@/lib/erc8004-registry";
+import type { AgentWalletPolicyRequest } from "@/lib/agent-wallets/types";
 import { validatePublicHttpsUrl } from "@/lib/network-safety";
 
 const MAX_JSON_BYTES = 256 * 1024;
@@ -11,6 +12,12 @@ interface NegotiationInput {
     quality_standards: string;
     success_criteria?: string[];
   };
+  /**
+   * Provider-neutral requested wallet boundary. Providers may use Turnkey,
+   * TWAK, Altana or another backend to implement it. Sending this object does
+   * not prove that a provider-side policy is configured or enforced.
+   */
+  agent_wallet_policy?: AgentWalletPolicyRequest;
 }
 
 export interface NegotiationTransportResult {
