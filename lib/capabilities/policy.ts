@@ -4,6 +4,7 @@ import type { HireCapabilityPolicy, PaidToolId, ToolSpendLimit } from "@/lib/cap
 
 const PAID_TOOLS = new Set<PaidToolId>(["cournot", "telegraph"]);
 const PERMISSION_DAYS = new Set([1, 7, 30]);
+const SECONDS_PER_DAY = 24 * 60 * 60;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -96,6 +97,15 @@ export function canonicalCapabilityPolicy(policy: HireCapabilityPolicy): string 
 
 export function hashHireCapabilityPolicy(policy: HireCapabilityPolicy): `0x${string}` {
   return keccak256(toBytes(canonicalCapabilityPolicy(policy)));
+}
+
+export function permissionExpirySeconds(
+  permissionDurationDays: HireCapabilityPolicy["permissionDurationDays"],
+  nowMs = Date.now(),
+): bigint {
+  const days = parsePermissionDuration(permissionDurationDays);
+  if (!days) throw new Error("Unsupported AgentDesk permission duration");
+  return BigInt(Math.floor(nowMs / 1000) + days * SECONDS_PER_DAY);
 }
 
 export function capabilityPolicySummary(policy: HireCapabilityPolicy): string[] {
