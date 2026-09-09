@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import "./auditions.css";
 import "./hiring.css";
+import "./capabilities.css";
 import "./category-depth.css";
 import "./responsive-hardening.css";
 import "./clean-marketplace.css";
