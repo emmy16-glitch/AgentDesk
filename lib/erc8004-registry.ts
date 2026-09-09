@@ -1,5 +1,7 @@
 import { createPublicClient, defineChain, http } from "viem";
 import { validatePublicHttpsUrl } from "@/lib/network-safety";
+import { extractAgentWalletAdvertisement } from "@/lib/agent-wallets/providers";
+import type { AgentWalletAdvertisement } from "@/lib/agent-wallets/types";
 
 export const BSC_MAINNET_IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as const;
 const MAX_METADATA_BYTES = 256 * 1024;
@@ -67,6 +69,8 @@ export interface OnChainAgentIdentity {
   registryAddress: typeof BSC_MAINNET_IDENTITY_REGISTRY;
   owner: string;
   agentWallet: string | null;
+  /** Explicit wallet-provider claim from registration metadata, if one exists. */
+  walletInfrastructure: AgentWalletAdvertisement | null;
   agentUri: string;
   metadata: AgentRegistrationMetadata | null;
   metadataStatus: "resolved" | "unresolved" | "unsupported-uri" | "invalid-json" | "blocked-uri" | "too-large";
@@ -217,6 +221,7 @@ export async function resolveOnChainAgentIdentity(tokenId: number): Promise<OnCh
 
   const resolved = await resolveMetadata(agentUri);
   const services = normalizeServices(resolved.metadata);
+  const walletInfrastructure = extractAgentWalletAdvertisement(resolved.metadata, "erc8004-metadata");
 
   return {
     chainId: 56,
@@ -224,6 +229,7 @@ export async function resolveOnChainAgentIdentity(tokenId: number): Promise<OnCh
     registryAddress: BSC_MAINNET_IDENTITY_REGISTRY,
     owner,
     agentWallet: walletResult && walletResult !== "0x0000000000000000000000000000000000000000" ? walletResult : null,
+    walletInfrastructure,
     agentUri,
     metadata: resolved.metadata,
     metadataStatus: resolved.status,
