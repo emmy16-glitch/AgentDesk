@@ -14,7 +14,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,7 +27,7 @@ jobs:
           npm install --save-exact playwright@1.63.0
           ./node_modules/.bin/playwright install --with-deps chromium
 
-      - name: Record live AgentDesk flow
+      - name: Record live AgentDesk scenarios
         env:
           DEMO_URL: https://agentdesk-bnb-eight.vercel.app/
           OUTPUT_DIR: ${{ github.workspace }}/demo-artifacts
@@ -47,160 +46,163 @@ jobs:
             fs.appendFileSync(path.join(outDir, 'recorder.log'), `${line}\n`);
           };
 
-          let browser;
-          let context;
-          let page;
-          let outcome = 'unknown';
-          let bodyText = '';
+          const scenarios = [
+            { slug: 'grid', prompt: 'Create a moderate-risk grid trading plan for WBNB/USDT using 500 USDT.' },
+            { slug: 'rebalance', prompt: 'Rebalance BNB 50%, USDC 30%, CAKE 20% to lower my risk.' },
+          ];
 
-          const pause = ms => page.waitForTimeout(ms);
-          const shot = async name => {
-            try { await page.screenshot({ path: path.join(outDir, `${name}.png`), fullPage: false }); }
-            catch (error) { log('Screenshot failed:', name, error?.message || error); }
-          };
-          const clickAny = async labels => {
-            for (const label of labels) {
-              const re = new RegExp(label, 'i');
-              for (const locator of [
-                page.getByRole('button', { name: re }),
-                page.getByRole('link', { name: re }),
-                page.getByText(re).first(),
-              ]) {
-                try {
-                  if (await locator.isVisible({ timeout: 1000 })) {
-                    await locator.click({ timeout: 10000 });
-                    log('Clicked:', label);
-                    return true;
-                  }
-                } catch {}
-              }
-            }
-            log('No clickable match for:', labels.join(' | '));
-            return false;
-          };
+          const browser = await chromium.launch({ headless: true });
 
-          try {
-            browser = await chromium.launch({ headless: true });
-            context = await browser.newContext({
-              viewport: { width: 1440, height: 900 },
-              recordVideo: { dir: outDir, size: { width: 1440, height: 900 } },
-            });
-            page = await context.newPage();
-            page.on('console', msg => log('browser:', msg.type(), msg.text()));
-            page.on('pageerror', error => log('pageerror:', error.message));
-
-            log('Opening live production:', process.env.DEMO_URL);
-            await page.goto(process.env.DEMO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-            await pause(3500);
-            log('Loaded:', await page.title());
-            await shot('01-home');
-
-            let input = null;
-            for (const candidate of [
-              page.locator('#agent-task'),
-              page.getByRole('textbox').first(),
-              page.locator('textarea').first(),
-              page.locator('input[type="text"]').first(),
-            ]) {
-              try {
-                if (await candidate.isVisible({ timeout: 1000 })) { input = candidate; break; }
-              } catch {}
-            }
-            if (!input) throw new Error('Could not find task input');
-
-            await input.click();
-            await input.fill('Find a low-risk yield option for 500 USDC');
-            await pause(1500);
-            await shot('02-task-entered');
-
-            if (!await clickAny(['Find & test agents', 'Find and test agents'])) {
-              await input.press('Enter').catch(() => {});
-            }
-            await pause(2600);
-            await shot('03-details');
-
-            const started = await clickAny(['Find live agents', 'Start test', 'Test agents', 'Run test']);
-            if (!started) throw new Error('Could not start the live agent test from Details');
-            await pause(1800);
-            await shot('04-test-started');
-
-            const signals = [
-              /BEST LIVE RESULT/i,
-              /LIVE CAPABILITY MATCH/i,
-              /Task completed/i,
-              /Capability confirmed/i,
-              /couldn.?t get enough live evidence/i,
-              /No compatible/i,
-              /Live audition failed/i,
-            ];
-
-            let detected = false;
-            for (let i = 0; i < 48; i++) {
-              for (const re of signals) {
-                try {
-                  if (await page.getByText(re).first().isVisible({ timeout: 200 })) {
-                    detected = true;
-                    log('Detected result signal:', re.toString());
-                    break;
-                  }
-                } catch {}
-              }
-              if (detected) break;
-              await pause(2500);
-            }
-
-            await pause(3000);
-            await shot('05-result');
-            bodyText = await page.locator('body').innerText().catch(() => '');
-
-            if (/BEST LIVE RESULT/i.test(bodyText)) outcome = 'task-result';
-            else if (/LIVE CAPABILITY MATCH/i.test(bodyText)) outcome = 'capability-offer';
-            else if (/couldn.?t get enough live evidence|No compatible|Live audition failed/i.test(bodyText)) outcome = 'live-failure';
-            else outcome = 'result-state-unclear';
-            log('Outcome:', outcome);
-
-            if (outcome === 'task-result') {
-              if (await clickAny(['Check answer'])) {
-                await pause(3500);
-                await shot('06-check');
-                if (await clickAny(['Continue to hire', 'Hire'])) {
-                  await pause(3000);
-                  await shot('07-hire');
+          async function runScenario(scenario) {
+            let context;
+            let page;
+            let video;
+            let outcome = 'unknown';
+            let bodyText = '';
+            const prefix = scenario.slug;
+            const pause = ms => page.waitForTimeout(ms);
+            const shot = async name => {
+              try { await page.screenshot({ path: path.join(outDir, `${prefix}-${name}.png`), fullPage: false }); } catch {}
+            };
+            const clickAny = async labels => {
+              for (const label of labels) {
+                const re = new RegExp(label, 'i');
+                for (const locator of [page.getByRole('button', { name: re }), page.getByRole('link', { name: re }), page.getByText(re).first()]) {
+                  try {
+                    if (await locator.isVisible({ timeout: 900 })) {
+                      await locator.click({ timeout: 10000 });
+                      log(`[${prefix}] clicked:`, label);
+                      return true;
+                    }
+                  } catch {}
                 }
               }
-            } else if (outcome === 'capability-offer') {
-              if (await clickAny(['Continue to hire', 'Hire'])) {
-                await pause(3000);
-                await shot('06-hire');
+              return false;
+            };
+
+            try {
+              context = await browser.newContext({
+                viewport: { width: 1440, height: 900 },
+                recordVideo: { dir: outDir, size: { width: 1440, height: 900 } },
+              });
+              page = await context.newPage();
+              video = page.video();
+              page.on('pageerror', error => log(`[${prefix}] pageerror:`, error.message));
+
+              log(`[${prefix}] opening live production`);
+              await page.goto(process.env.DEMO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await pause(3000);
+              await shot('01-home');
+
+              const input = page.locator('#agent-task');
+              await input.waitFor({ state: 'visible', timeout: 15000 });
+              await input.click();
+              await input.fill(scenario.prompt);
+              await pause(1300);
+              await shot('02-task');
+
+              if (!await clickAny(['Find & test agents', 'Find and test agents'])) await input.press('Enter');
+              await pause(2200);
+              await shot('03-details');
+
+              if (!await clickAny(['Find live agents'])) throw new Error('Could not start live test');
+              await pause(1700);
+              await shot('04-testing');
+
+              const successSignals = [/BEST LIVE RESULT/i, /LIVE CAPABILITY MATCH/i];
+              const failureSignals = [/We found registry matches/i, /couldn.?t get enough live evidence/i, /No compatible/i, /Live audition failed/i];
+              let finished = false;
+              for (let i = 0; i < 36; i++) {
+                for (const re of successSignals) {
+                  try {
+                    if (await page.getByText(re).first().isVisible({ timeout: 180 })) {
+                      log(`[${prefix}] success signal:`, re.toString());
+                      finished = true;
+                      break;
+                    }
+                  } catch {}
+                }
+                if (finished) break;
+                for (const re of failureSignals) {
+                  try {
+                    if (await page.getByText(re).first().isVisible({ timeout: 180 })) {
+                      log(`[${prefix}] failure signal:`, re.toString());
+                      finished = true;
+                      break;
+                    }
+                  } catch {}
+                }
+                if (finished) break;
+                await pause(2500);
+              }
+
+              await pause(2500);
+              await shot('05-result');
+              bodyText = await page.locator('body').innerText().catch(() => '');
+
+              if (/BEST LIVE RESULT/i.test(bodyText)) outcome = 'task-result';
+              else if (/LIVE CAPABILITY MATCH/i.test(bodyText)) outcome = 'capability-offer';
+              else if (/We found registry matches|couldn.?t get enough live evidence|No compatible|Live audition failed/i.test(bodyText)) outcome = 'live-failure';
+              else outcome = 'result-state-unclear';
+              log(`[${prefix}] outcome:`, outcome);
+
+              if (outcome === 'task-result') {
+                if (await clickAny(['Check answer'])) {
+                  await pause(3200);
+                  await shot('06-check');
+                  if (await clickAny(['Continue to hire', 'Hire'])) {
+                    await pause(2800);
+                    await shot('07-hire');
+                  }
+                }
+              } else if (outcome === 'capability-offer') {
+                if (await clickAny(['Continue to hire', 'Hire'])) {
+                  await pause(2800);
+                  await shot('06-hire');
+                }
+              }
+            } catch (error) {
+              outcome = 'recorder-error';
+              log(`[${prefix}] recorder error:`, error?.stack || error);
+              if (page) await shot('error');
+            } finally {
+              fs.writeFileSync(path.join(outDir, `${prefix}-outcome.txt`), `${outcome}\n`);
+              if (bodyText) fs.writeFileSync(path.join(outDir, `${prefix}-page.txt`), bodyText.slice(0, 30000));
+              if (context) await context.close().catch(() => {});
+              if (video) {
+                try {
+                  const recordedPath = await video.path();
+                  fs.renameSync(recordedPath, path.join(outDir, `${prefix}-raw.webm`));
+                } catch (error) { log(`[${prefix}] video rename failed:`, error?.message || error); }
               }
             }
-          } catch (error) {
-            outcome = 'recorder-error';
-            log('Recorder error:', error?.stack || error);
-            if (page) await shot('error');
-          } finally {
-            fs.writeFileSync(path.join(outDir, 'outcome.txt'), `${outcome}\n`);
-            if (bodyText) fs.writeFileSync(path.join(outDir, 'page.txt'), bodyText.slice(0, 30000));
-            if (context) await context.close().catch(() => {});
-            if (browser) await browser.close().catch(() => {});
+            return outcome;
           }
+
+          const results = {};
+          for (const scenario of scenarios) {
+            results[scenario.slug] = await runScenario(scenario);
+            if (results[scenario.slug] === 'task-result' || results[scenario.slug] === 'capability-offer') break;
+          }
+          fs.writeFileSync(path.join(outDir, 'outcomes.json'), JSON.stringify(results, null, 2));
+          await browser.close();
           EOF
           cd /tmp/agentdesk-recorder
           node record-demo.mjs
 
-      - name: Convert recording to MP4
+      - name: Convert recordings to MP4
         if: always()
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ffmpeg
-          VIDEO=$(find demo-artifacts -maxdepth 1 -type f -name '*.webm' | head -n 1 || true)
-          if [ -n "$VIDEO" ]; then
-            ffmpeg -y -i "$VIDEO" -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -movflags +faststart demo-artifacts/agentdesk-demo.mp4
-          fi
-          echo "Artifacts:"
+          for VIDEO in demo-artifacts/*-raw.webm; do
+            [ -e "$VIDEO" ] || continue
+            BASE=$(basename "$VIDEO" -raw.webm)
+            ffmpeg -y -i "$VIDEO" -c:v libx264 -preset medium -crf 20 -pix_fmt yuv420p -movflags +faststart "demo-artifacts/${BASE}-demo.mp4"
+          done
+          echo "Outcomes:"
+          cat demo-artifacts/outcomes.json || true
           ls -lah demo-artifacts
-          echo "Outcome:"
-          cat demo-artifacts/outcome.txt || true
 
       - name: Upload demo artifact
         if: always()
