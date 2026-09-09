@@ -40,11 +40,18 @@ function isPrivateAddress(address: string): boolean {
   return true;
 }
 
+export function containsUnresolvedUrlTemplate(input: string): boolean {
+  return /\{[^{}]+\}/.test(input);
+}
+
 export async function validatePublicHttpsUrl(input: string): Promise<
   | { ok: true; url: URL }
   | { ok: false; reason: string }
 > {
   if (!input || input.length > 2048) return { ok: false, reason: "URL is empty or too long" };
+  if (containsUnresolvedUrlTemplate(input)) {
+    return { ok: false, reason: "Unresolved URL template parameters are unsupported" };
+  }
 
   let url: URL;
   try {
