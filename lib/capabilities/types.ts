@@ -17,8 +17,11 @@ export interface HireCapabilityPolicy {
   externalIntelligence: boolean;
   paidIntelligence: boolean;
   approvedPaidTools: PaidToolId[];
+  /** Maximum price AgentDesk policy may accept for one paid tool proposal. */
   maxToolSpend?: ToolSpendLimit;
   execution: ExecutionPermission;
+  /** Bounded permission/job window selected by the user. */
+  permissionDurationDays: 1 | 7 | 30;
 }
 
 export interface PaidToolDefinition {
