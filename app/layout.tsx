@@ -8,6 +8,7 @@ import "./category-depth.css";
 import "./responsive-hardening.css";
 import "./clean-marketplace.css";
 import "./agentdesk-flow.css";
+import "./check-cleanup.css";
 import AppProviders from "@/components/providers/AppProviders";
 
 export const metadata: Metadata = {
