@@ -2,8 +2,7 @@ name: Record AgentDesk demo
 
 on:
   push:
-    branches:
-      - demo-recording
+    branches: [demo-recording]
   workflow_dispatch:
 
 permissions:
@@ -14,11 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -32,7 +28,7 @@ jobs:
           DEMO_URL: https://agentdesk-bnb-eight.vercel.app/
         run: |
           mkdir -p demo-artifacts
-          cat > /tmp/record-demo.mjs <<'EOF'
+          cat > record-demo.mjs <<'EOF'
           import { chromium } from 'playwright';
           import fs from 'node:fs';
 
@@ -43,21 +39,15 @@ jobs:
             recordVideo: { dir: outDir, size: { width: 1440, height: 900 } },
           });
           const page = await context.newPage();
-          const pause = (ms) => page.waitForTimeout(ms);
-          const shot = async (name) => {
-            try { await page.screenshot({ path: `${outDir}/${name}.png`, fullPage: false }); } catch {}
-          };
-          const clickByText = async (texts, timeout = 10000) => {
-            for (const text of texts) {
-              const candidates = [
-                page.getByRole('button', { name: new RegExp(text, 'i') }),
-                page.getByRole('link', { name: new RegExp(text, 'i') }),
-                page.getByText(new RegExp(text, 'i')).first(),
-              ];
-              for (const locator of candidates) {
+          const pause = ms => page.waitForTimeout(ms);
+          const shot = async name => { try { await page.screenshot({ path: `${outDir}/${name}.png` }); } catch {} };
+          const clickAny = async labels => {
+            for (const label of labels) {
+              const re = new RegExp(label, 'i');
+              for (const locator of [page.getByRole('button', { name: re }), page.getByRole('link', { name: re }), page.getByText(re).first()]) {
                 try {
                   if (await locator.isVisible({ timeout: 1200 })) {
-                    await locator.click({ timeout });
+                    await locator.click({ timeout: 10000 });
                     return true;
                   }
                 } catch {}
@@ -67,82 +57,58 @@ jobs:
           };
 
           let outcome = 'unknown';
+          let bodyText = '';
           try {
             await page.goto(process.env.DEMO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
             await pause(3500);
             await shot('01-home');
 
-            const inputCandidates = [
-              page.getByRole('textbox').first(),
-              page.locator('textarea').first(),
-              page.locator('input[type="text"]').first(),
-            ];
             let input = null;
-            for (const candidate of inputCandidates) {
-              try {
-                if (await candidate.isVisible({ timeout: 1200 })) { input = candidate; break; }
-              } catch {}
+            for (const candidate of [page.getByRole('textbox').first(), page.locator('textarea').first(), page.locator('input[type="text"]').first()]) {
+              try { if (await candidate.isVisible({ timeout: 1200 })) { input = candidate; break; } } catch {}
             }
             if (!input) throw new Error('Could not find task input');
 
-            await input.click();
             await input.fill('Find a low-risk yield option for 500 USDC');
-            await pause(1400);
+            await pause(1500);
             await shot('02-task-entered');
 
-            if (!await clickByText(['Find & test agents', 'Find and test agents', 'Continue', 'Next'])) {
-              await input.press('Enter').catch(() => {});
-            }
+            if (!await clickAny(['Find & test agents', 'Find and test agents', 'Continue', 'Next'])) await input.press('Enter').catch(() => {});
             await pause(2500);
             await shot('03-details');
 
-            await clickByText(['Start test', 'Test agents', 'Find & test agents', 'Continue', 'Run test', 'Next']);
+            await clickAny(['Start test', 'Test agents', 'Find & test agents', 'Continue', 'Run test', 'Next']);
             await pause(1800);
             await shot('04-test-started');
 
-            const resultSignals = [
-              /Best Match/i,
-              /BEST LIVE RESULT/i,
-              /LIVE CAPABILITY MATCH/i,
-              /Task completed/i,
-              /Capability confirmed/i,
-              /couldn't get enough live evidence/i,
-              /No compatible/i,
-              /Live audition failed/i,
-            ];
-
-            let detected = false;
+            const signals = [/BEST LIVE RESULT/i, /LIVE CAPABILITY MATCH/i, /Task completed/i, /Capability confirmed/i, /couldn't get enough live evidence/i, /No compatible/i, /Live audition failed/i];
             for (let i = 0; i < 36; i++) {
-              for (const re of resultSignals) {
-                try {
-                  if (await page.getByText(re).first().isVisible({ timeout: 250 })) {
-                    detected = true;
-                    break;
-                  }
-                } catch {}
+              let found = false;
+              for (const re of signals) {
+                try { if (await page.getByText(re).first().isVisible({ timeout: 250 })) { found = true; break; } } catch {}
               }
-              if (detected) break;
+              if (found) break;
               await pause(2500);
             }
 
             await pause(3000);
             await shot('05-result');
+            bodyText = await page.locator('body').innerText().catch(() => '');
 
-            const bodyText = await page.locator('body').innerText().catch(() => '');
             if (/BEST LIVE RESULT|Task completed/i.test(bodyText)) outcome = 'task-result';
             else if (/LIVE CAPABILITY MATCH|Capability confirmed/i.test(bodyText)) outcome = 'capability-offer';
             else if (/couldn't get enough live evidence|No compatible|Live audition failed|Unavailable/i.test(bodyText)) outcome = 'live-failure';
             else outcome = 'result-state-unclear';
 
             if (outcome === 'task-result') {
-              await clickByText(['Check answer', 'Check Answer', 'Check']);
+              await clickAny(['Check answer', 'Check Answer', 'Check']);
               await pause(3500);
               await shot('06-check');
-              await clickByText(['Hire', 'Continue to Hire', 'Continue']);
+              await clickAny(['Hire', 'Continue to Hire', 'Continue']);
               await pause(3000);
               await shot('07-hire');
             } else if (outcome === 'capability-offer') {
-              await clickByText(['Hire', 'Continue to Hire', 'Continue']);
+              await clickAny(['Hire', 'Continue to Hire', 'Continue']);
               await pause(3000);
               await shot('06-hire');
             }
@@ -150,8 +116,7 @@ jobs:
             fs.writeFileSync(`${outDir}/outcome.txt`, `${outcome}\n`);
             fs.writeFileSync(`${outDir}/page.txt`, bodyText.slice(0, 25000));
           } catch (error) {
-            outcome = 'recorder-error';
-            fs.writeFileSync(`${outDir}/outcome.txt`, `${outcome}\n${error?.stack || error}\n`);
+            fs.writeFileSync(`${outDir}/outcome.txt`, `recorder-error\n${error?.stack || error}\n`);
             await shot('error');
             throw error;
           } finally {
@@ -159,7 +124,7 @@ jobs:
             await browser.close();
           }
           EOF
-          node /tmp/record-demo.mjs
+          node record-demo.mjs
 
       - name: Convert recording to MP4
         if: always()
