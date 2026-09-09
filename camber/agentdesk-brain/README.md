@@ -1,5 +1,8 @@
 # AgentDesk Brain — Camber Context Bundle
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live product docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 This folder is the source-controlled context for the Camber agent used as AgentDesk's evidence analyst.
 
 The Brain is **not** an ERC-8004 seller and is **not** proof. It explains evidence already produced by AgentDesk.
