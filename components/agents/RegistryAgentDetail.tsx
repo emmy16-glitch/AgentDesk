@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Check, ExternalLink, ShieldCheck, UserRound } from "lucide-react";
 import ServiceProbePanel from "@/components/agents/ServiceProbePanel";
+import { walletProviderProfile } from "@/lib/agent-wallets/providers";
 import type { OnChainAgentIdentity } from "@/lib/erc8004-registry";
 
 export default function RegistryAgentDetail({ identity }: { identity: OnChainAgentIdentity }) {
@@ -10,6 +11,8 @@ export default function RegistryAgentDetail({ identity }: { identity: OnChainAge
   const supportedTrust = Array.isArray(metadata?.supportedTrust)
     ? metadata.supportedTrust.filter((value): value is string => typeof value === "string")
     : [];
+  const walletAdvertisement = identity.walletInfrastructure;
+  const walletProfile = walletAdvertisement ? walletProviderProfile(walletAdvertisement.provider) : null;
 
   return <main className="detail-shell">
     <Link className="detail-back" href="/"><ArrowLeft size={16} /> Marketplace</Link>
@@ -35,6 +38,18 @@ export default function RegistryAgentDetail({ identity }: { identity: OnChainAge
             <li><Check size={16} />Metadata: {identity.metadataStatus}</li>
           </ul>
         </section>
+
+        {walletAdvertisement && walletProfile ? <section className="detail-section">
+          <h2>Agent wallet infrastructure</h2>
+          <ul className="detail-capabilities">
+            <li><Check size={16} />Advertised provider: {walletAdvertisement.providerLabel}</li>
+            <li><Check size={16} />Source field: {walletAdvertisement.sourceField}</li>
+            <li><Check size={16} />Policy configured: {claimLabel(walletAdvertisement.policyConfigured)}</li>
+            <li><Check size={16} />Human approval configured: {claimLabel(walletAdvertisement.humanApprovalConfigured)}</li>
+          </ul>
+          {walletAdvertisement.advertisedCapabilities.length ? <p className="detail-description">Advertised capabilities: {walletAdvertisement.advertisedCapabilities.join(", ")}</p> : null}
+          <p className="detail-description"><strong>Evidence boundary:</strong> {walletProfile.proofBoundary}</p>
+        </section> : null}
 
         <section className="detail-section metrics-section">
           <h2>Advertised services</h2>
@@ -79,4 +94,10 @@ export default function RegistryAgentDetail({ identity }: { identity: OnChainAge
 
 function short(value: string) {
   return value.length > 14 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
+}
+
+function claimLabel(value: boolean | null) {
+  if (value === true) return "Advertised as enabled (not independently verified)";
+  if (value === false) return "Advertised as disabled";
+  return "Not stated";
 }

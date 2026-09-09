@@ -35,6 +35,10 @@ export interface StructuredAgentdeskClaims {
   priceAsset: string | null;
   riskLevel: string | null;
   requiresExecution: boolean | null;
+  /** Provider-side wallet claims remain self-reported until independently evidenced. */
+  walletProvider: string | null;
+  walletPolicyEnforced: boolean | null;
+  humanApprovalRequired: boolean | null;
 }
 
 export interface StructuredAuditionClaims {
@@ -81,12 +85,36 @@ function booleanValue(...values: unknown[]): boolean | null {
 }
 
 function agentdeskClaims(claims: Record<string, unknown>): StructuredAgentdeskClaims {
+  const wallet = objectValue(claims.wallet);
+  const walletPolicy = objectValue(claims.walletPolicy)
+    ?? objectValue(claims.wallet_policy)
+    ?? objectValue(wallet?.policy);
   return {
     protocol: stringValue(claims.protocol),
     price: stringValue(claims.price),
     priceAsset: stringValue(claims.priceAsset, claims.price_asset),
     riskLevel: stringValue(claims.riskLevel, claims.risk_level),
     requiresExecution: booleanValue(claims.requiresExecution, claims.requires_execution),
+    walletProvider: stringValue(
+      claims.walletProvider,
+      claims.wallet_provider,
+      wallet?.provider,
+      wallet?.kind,
+    ),
+    walletPolicyEnforced: booleanValue(
+      claims.walletPolicyEnforced,
+      claims.wallet_policy_enforced,
+      walletPolicy?.enforced,
+      walletPolicy?.enabled,
+    ),
+    humanApprovalRequired: booleanValue(
+      claims.humanApprovalRequired,
+      claims.human_approval_required,
+      walletPolicy?.humanApprovalRequired,
+      walletPolicy?.human_approval_required,
+      walletPolicy?.requireConsensus,
+      walletPolicy?.require_consensus,
+    ),
   };
 }
 

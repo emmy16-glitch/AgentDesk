@@ -61,6 +61,17 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     },
   };
 
+  const walletEvidence: AuditionEvidence | null = identity.walletInfrastructure
+    ? {
+        kind: "wallet-infrastructure",
+        source: identity.explorerUrl,
+        observedAt: identity.checkedAt,
+        summary: `The ERC-8004 registration explicitly advertises ${identity.walletInfrastructure.providerLabel} as agent wallet infrastructure. This identifies an advertised custody/signing provider only; it does not prove that a task-specific wallet policy is configured or enforced.`,
+        raw: identity.walletInfrastructure,
+      }
+    : null;
+  const baseEvidence = walletEvidence ? [identityEvidence, walletEvidence] : [identityEvidence];
+
   const a2aService = identity.services.find((service) => isA2AServiceName(service.name));
   if (!a2aService) {
     const taskFit = explainTaskFit({
@@ -79,6 +90,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
         registryAddress: identity.registryAddress,
         owner: identity.owner,
         agentWallet: identity.agentWallet,
+        walletInfrastructure: identity.walletInfrastructure,
         sourceUrl: identity.explorerUrl,
       },
       task: request.task,
@@ -88,7 +100,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
       checkedAt: new Date().toISOString(),
       quote: null,
       output: null,
-      evidence: [identityEvidence],
+      evidence: baseEvidence,
       taskFit,
       error: "This ERC-8004 registration does not advertise an A2A service. AgentDesk will not guess a task endpoint from a generic web URL.",
     };
@@ -111,6 +123,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
       registryAddress: identity.registryAddress,
       owner: identity.owner,
       agentWallet: identity.agentWallet,
+      walletInfrastructure: identity.walletInfrastructure,
       sourceUrl: identity.explorerUrl,
     },
     task: request.task,
@@ -120,7 +133,7 @@ export async function runAudition(request: AuditionRequest): Promise<AuditionRes
     checkedAt: execution.checkedAt,
     quote: execution.quote,
     output: execution.output,
-    evidence: [identityEvidence, ...execution.evidence],
+    evidence: [...baseEvidence, ...execution.evidence],
     taskFit,
     ...(execution.error ? { error: execution.error } : {}),
   };
