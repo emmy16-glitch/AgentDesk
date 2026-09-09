@@ -22,7 +22,7 @@ const SCREEN_H = 1080;
 const project = JSON.parse(fs.readFileSync(projectPath, "utf8"));
 const eventsDoc = JSON.parse(fs.readFileSync(eventsPath, "utf8"));
 const events = eventsDoc.events || [];
-const durationMs = eventsDoc.done?.durationMs ?? null;
+const durationMs = eventsDoc.durationMs ?? eventsDoc.done?.durationMs ?? null;
 
 const find = (name) => events.find((event) => event.name === name && event.tMs !== null) ?? null;
 const clamp01 = (value) => Math.min(1, Math.max(0, value));

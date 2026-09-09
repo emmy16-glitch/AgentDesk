@@ -44,9 +44,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq || true
-          sudo apt-get install -y -qq xdotool xvfb ffmpeg x11-utils >/dev/null
-          which xdotool xvfb-run Xvfb ffmpeg
-          which google-chrome-stable || which google-chrome || which chromium-browser
+          sudo apt-get install -y -qq ffmpeg xvfb >/dev/null
+          which ffmpeg xvfb-run
 
       - name: Fetch OpenScreen (AppImage, extracted)
         run: |
@@ -56,19 +55,13 @@ jobs:
           ./openscreen.AppImage --appimage-extract >/dev/null
           test -x squashfs-root/AppRun && echo "OpenScreen extracted OK"
 
-      - name: Install playwright-core
-        run: npm install --no-save playwright-core
-
-      - name: Start virtual display
+      - name: Install Playwright + Chromium
         run: |
-          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp > demo-xvfb.log 2>&1 &
-          sleep 3
-          DISPLAY=:99 xdpyinfo | head -3
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
 
       - name: Record the demo (real app, real agents, real waits)
-        run: |
-          DISPLAY=:99 DEMO_DIR=demo OPENSCREEN_BIN=./squashfs-root/AppRun \
-            node scripts/product-demo/record-demo.mjs
+        run: DEMO_DIR=demo node scripts/product-demo/record-demo.mjs
 
       - name: Inspect recording + events
         if: always()
@@ -81,8 +74,8 @@ jobs:
 
       - name: Export with OpenScreen
         run: |
-          DISPLAY=:99 ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun info demo/agentdesk.openscreen --json || true
-          DISPLAY=:99 ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun export demo/agentdesk.openscreen \
+          xvfb-run -a env ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun info demo/agentdesk.openscreen --json || true
+          xvfb-run -a env ELECTRON_DISABLE_SANDBOX=1 ./squashfs-root/AppRun export demo/agentdesk.openscreen \
             -o demo/AgentDesk-demo.mp4 --quality good --json | tee demo/openscreen-export.log
 
       - name: Probe + extract thumbnails
@@ -98,7 +91,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          git add demo/ demo-xvfb.log 2>/dev/null || true
+          git add -f demo/ demo-xvfb.log 2>/dev/null || true
           git commit -m "chore(demo): recording diagnostics (failed run)" || echo "nothing to commit"
           git push origin "HEAD:${GITHUB_REF_NAME}" || true
 
@@ -107,6 +100,6 @@ jobs:
           test -s demo/AgentDesk-demo.mp4 || { echo "::error::Export produced no video — see openscreen-export.log"; exit 1; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add demo/AgentDesk-demo.mp4 demo/events.json demo/probe.json demo/thumbs demo/openscreen-export.log demo/openscreen-record.log
+          git add -f demo/AgentDesk-demo.mp4 demo/events.json demo/probe.json demo/thumbs demo/openscreen-export.log
           git commit -m "chore(demo): add recorded AgentDesk product demo (video + thumbnails)"
           git push origin "HEAD:${GITHUB_REF_NAME}"
