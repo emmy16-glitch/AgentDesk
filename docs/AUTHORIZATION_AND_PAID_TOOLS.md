@@ -1,5 +1,8 @@
 # AgentDesk authorization and paid-tool boundary
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/
+
 AgentDesk keeps agent discovery, hiring, agent-wallet infrastructure, paid tools and execution authority separate.
 
 ```text
