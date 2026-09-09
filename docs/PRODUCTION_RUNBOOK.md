@@ -1,5 +1,9 @@
 # AgentDesk Production Runbook
 
+**Live AgentDesk:** https://agentdesk-bnb-eight.vercel.app/  
+**Live docs:** https://agentdesk-bnb-eight.vercel.app/docs/  
+**Proof page:** https://agentdesk-bnb-eight.vercel.app/proof/
+
 This runbook is for public hackathon deployment and judge-demo operations. `HACKATHON_LOCK.md` remains the product source of truth.
 
 ## Pre-deploy gate
@@ -33,9 +37,19 @@ Never put a buyer private key, deployer key, scan API key, or Camber token in a 
 
 ## Public probes
 
+Production base URL:
+
+`https://agentdesk-bnb-eight.vercel.app/`
+
 - `GET /api/health/` — process liveness only.
 - `GET /api/readiness/` — bounded BNB mainnet + ERC-8004 registry readiness.
 - `GET /proof/` — human-readable evidence map for judges.
+
+Direct links:
+
+- https://agentdesk-bnb-eight.vercel.app/api/health/
+- https://agentdesk-bnb-eight.vercel.app/api/readiness/
+- https://agentdesk-bnb-eight.vercel.app/proof/
 
 A `503` from readiness is an honest degraded state, not permission to fabricate agent availability.
 
@@ -45,9 +59,10 @@ A `503` from readiness is an honest degraded state, not permission to fabricate 
 2. Open `/api/readiness/`. Prefer `200 ready`; if BNB RPC is temporarily degraded, disclose it rather than hiding it.
 3. Open `/proof/` so the judge understands the evidence vocabulary.
 4. Run the marketplace journey using live discovery.
-5. Use blind auditions first; reveal identities only after evidence is visible.
-6. Never call `FUNDED` completed.
-7. Only show portable completion reputation after the job is `COMPLETED`, signed terms still verify, and the returned delivery reproduces the on-chain deliverable hash.
+5. Use live auditions and preserve honest failure states.
+6. Never call a capability confirmation task completion.
+7. Never call `FUNDED` completed.
+8. Only show portable completion reputation after the job is `COMPLETED`, signed terms still verify, and the returned delivery reproduces the on-chain deliverable hash.
 
 ## Failure handling
 
@@ -85,6 +100,8 @@ For the final submission capture:
 - one live discovery source URL;
 - one live audition evidence trail;
 - one audition receipt hash;
-- one genuine ERC-8183 job + funding transaction;
-- provider delivery source and reproduced on-chain deliverable hash;
-- final ERC-8183 completion reference when available.
+- one genuine ERC-8183 job + funding transaction when available;
+- provider delivery source and reproduced on-chain deliverable hash when available;
+- final ERC-8183 completion reference only when it genuinely exists.
+
+The public deployment is already live; the remaining paid-job proof should never be fabricated merely to make the evidence list look complete.
