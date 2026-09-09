@@ -70,9 +70,19 @@ function shortlist(candidates: QualifiedCandidate[], task: DiscoveryRunInput["ta
 }
 
 function friendlyAuditionStatus(result: AuditionResult): string | undefined {
-  if (result.status === "timeout") return "Took too long";
-  if (result.status !== "completed") return "Couldn’t finish";
-  return undefined;
+  if (result.status === "completed") {
+    return result.responseKind === "capability-offer" ? "Capability confirmed — task not executed" : "Task response received";
+  }
+  if (result.status === "timeout") return "Timed out during the live audition";
+  if (result.status === "unsupported") {
+    if (/authentication/i.test(result.error ?? "")) return "Authentication required";
+    if (/does not advertise an A2A|no A2A/i.test(result.error ?? "")) return "No compatible A2A service";
+    if (/Agent Card/i.test(result.error ?? "")) return "Agent Card unavailable or incompatible";
+    if (/additional user input/i.test(result.error ?? "")) return "Needs more input before it can finish";
+    return "Live service is not compatible with this audition";
+  }
+  if (/HTTP \d+/i.test(result.error ?? "")) return "Agent endpoint returned an error";
+  return "Live audition failed";
 }
 
 export async function* runDiscoveryStream(
@@ -148,7 +158,7 @@ export async function* runDiscoveryStream(
   const finalists = shortlist(ruleCompatible, input.task);
   summary.shortlistedCandidates = finalists.length;
   if (!finalists.length) {
-    yield { type: "warning", code: "no-candidates", userMessage: "We couldn’t find enough available agents right now." };
+    yield { type: "warning", code: "no-candidates", userMessage: "We found registry matches, but none exposed a reachable live A2A service right now." };
     summary.completedAt = timestamp();
     yield { type: "done", summary };
     return;
@@ -161,7 +171,7 @@ export async function* runDiscoveryStream(
     tokenId: agent.tokenId,
     promise: dependencies.audition({ tokenId: agent.tokenId, task: input.task })
       .then((result) => ({ tokenId: agent.tokenId, result, failure: null as string | null }))
-      .catch(() => ({ tokenId: agent.tokenId, result: null, failure: "Couldn’t finish" })),
+      .catch(() => ({ tokenId: agent.tokenId, result: null, failure: "Live audition failed before a structured result was returned" })),
   }));
   const completed: AuditionResult[] = [];
   while (pending.length) {
@@ -170,15 +180,21 @@ export async function* runDiscoveryStream(
     if (index >= 0) pending.splice(index, 1);
     if (outcome.result) {
       completed.push(outcome.result);
-      yield { type: "audition-complete", tokenId: outcome.tokenId, status: outcome.result.status, latencyMs: outcome.result.latencyMs, ...(friendlyAuditionStatus(outcome.result) ? { userMessage: friendlyAuditionStatus(outcome.result) } : {}) };
+      yield {
+        type: "audition-complete",
+        tokenId: outcome.tokenId,
+        status: outcome.result.status,
+        latencyMs: outcome.result.latencyMs,
+        userMessage: friendlyAuditionStatus(outcome.result),
+      };
     } else {
-      yield { type: "audition-complete", tokenId: outcome.tokenId, status: "error", latencyMs: null, userMessage: "Couldn’t finish" };
+      yield { type: "audition-complete", tokenId: outcome.tokenId, status: "error", latencyMs: null, userMessage: outcome.failure || "Live audition failed" };
     }
   }
 
   summary.completedAuditions = completed.filter((result) => result.status === "completed" && result.output).length;
   if (!summary.completedAuditions) {
-    yield { type: "warning", code: "no-completed-auditions", userMessage: "The available agents couldn’t complete this task." };
+    yield { type: "warning", code: "no-completed-auditions", userMessage: "We found live candidates, but none returned enough usable evidence to compare this task." };
     summary.completedAt = timestamp();
     yield { type: "done", summary };
     return;
