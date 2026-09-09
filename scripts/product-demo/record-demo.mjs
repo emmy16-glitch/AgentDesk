@@ -191,6 +191,8 @@ async function writeEvents(extra = {}) {
   fs.writeFileSync(EVENTS_FILE, JSON.stringify(payload, null, 2));
 }
 
+let diagPage = null; // for fatal-time screenshots
+
 async function run() {
   log("Launching headless Chromium for", APP_URL);
   const browser = await chromium.launch({
@@ -201,6 +203,7 @@ async function run() {
       "--hide-scrollbars",
       "--force-color-profile=srgb",
       "--lang=en-US",
+      "--disable-blink-features=AutomationControlled",
     ],
   });
 
@@ -208,18 +211,29 @@ async function run() {
     viewport: { width: SCREEN_W, height: SCREEN_H },
     deviceScaleFactor: 1,
     locale: "en-US",
+    // Plain desktop Chrome UA (no "HeadlessChrome" fingerprint).
+    userAgent:
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
     recordVideo: { dir: RAW_DIR, size: { width: SCREEN_W, height: SCREEN_H } },
   });
   await context.addInitScript(CURSOR_OVERLAY_SCRIPT);
 
   videoEpoch = Date.now();
   const page = await context.newPage();
+  diagPage = page;
   page.on("pageerror", (error) => log("page error:", String(error).slice(0, 300)));
 
   log("Navigating…");
-  await page.goto(APP_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  try {
+    await page.goto(APP_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  } catch (error) {
+    log("First navigation attempt failed, retrying once:", String(error).slice(0, 200));
+    await sleep(2000);
+    await page.goto(APP_URL, { waitUntil: "load", timeout: 90_000 });
+  }
   await page.waitForSelector("#agent-task", { timeout: 60_000 });
   await settlePage(page);
+  await page.screenshot({ path: path.join(DEMO_DIR, "diag-01-homepage.png") }).catch(() => {});
   recordEvent("homepage_ready", { box: await getBox(page, ".ad-hero-copy") });
 
   /* --- Stage 1 · Ask: let the headline breathe ---------------------- */
@@ -261,6 +275,7 @@ async function run() {
   if (outcome === ".ad-stream-failure" || outcome === ".ad-empty-result") {
     const message = await page.textContent(`${outcome} h2`).catch(() => null);
     recordEvent("flow_failed", { selector: outcome, message: message?.trim() ?? null });
+    await page.screenshot({ path: path.join(DEMO_DIR, "diag-flowfailed.png") }).catch(() => {});
     log("Live discovery failed — recording the honest failure state.");
     flowFailed = true;
     await sleep(5200);
@@ -366,6 +381,7 @@ async function run() {
 
 run().catch(async (error) => {
   console.error("[record-demo] FATAL:", error);
+  try { await diagPage?.screenshot({ path: path.join(DEMO_DIR, "diag-fatal.png") }); } catch { /* best effort */ }
   await writeEvents({ fatal: String(error?.message || error) }).catch(() => {});
   process.exit(1);
 });

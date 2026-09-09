@@ -87,13 +87,24 @@ jobs:
 
       - name: Commit diagnostics on failure
         if: failure()
+        shell: bash
         run: |
+          set -x
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          git add -f demo/ demo-xvfb.log 2>/dev/null || true
-          git commit -m "chore(demo): recording diagnostics (failed run)" || echo "nothing to commit"
-          git push origin "HEAD:${GITHUB_REF_NAME}" || true
+          rm -rf demo/raw   # never ship the bulky raw capture
+          for f in demo/events.json demo/agentdesk.openscreen demo/screen.mp4 demo/probe.json demo/openscreen-export.log; do
+            [ -f "$f" ] && git add -f "$f"
+          done
+          [ -d demo/thumbs ] && git add -f demo/thumbs
+          for png in demo/diag-*.png; do [ -f "$png" ] && git add -f "$png"; done
+          if git diff --cached --quiet; then
+            echo "::warning::No diagnostics files found to commit (ls demo: $(ls demo 2>/dev/null | tr '\n' ' '))"
+          else
+            git commit -m "chore(demo): recording diagnostics (failed run)"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - name: Commit demo artifacts back to this branch
         run: |
