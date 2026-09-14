@@ -38,7 +38,7 @@
     "eslint-config-next": "15.5.24",
     "playwright": "^1.63.0",
     "postcss": "^8.5.0",
-    "solc": "^0.8.36",
+    "solc": "^0.8.37",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0"
   }
